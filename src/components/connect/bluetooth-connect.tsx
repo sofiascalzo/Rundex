@@ -32,7 +32,7 @@ export default function BluetoothConnect() {
     try {
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: ['battery_service'] // as requested
+        optionalServices: ['generic_access'] // Using a standard service
       });
       
       setDeviceName(device.name || "Unnamed Device");
