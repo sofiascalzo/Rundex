@@ -1,5 +1,4 @@
 import AppLayout from "@/components/app-layout";
-import PerformancePrediction from "@/components/dashboard/performance-prediction";
 import PostureIndicator from "@/components/dashboard/posture-indicator";
 import SpeedChart from "@/components/dashboard/speed-chart";
 import StatCard from "@/components/dashboard/stat-card";
@@ -31,9 +30,6 @@ export default function DashboardPage() {
             <SpeedChart />
           </div>
           <PostureIndicator value={latestData.posture_error} />
-        </div>
-        <div>
-          <PerformancePrediction />
         </div>
       </div>
     </AppLayout>
