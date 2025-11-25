@@ -1,81 +1,126 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef }s from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Bluetooth, BluetoothConnected, BluetoothSearching, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Bluetooth, BluetoothConnected, Lightbulb, LightbulbOff, Activity, ArrowRightLeft, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | "unsupported";
+// UUIDs from the Arduino sketch
+const SERVICE_UUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
+const LED_CHAR_UUID = '19b10001-e8f2-537e-4f6c-d104768a1214';
+const COUNTER_UUID = '19b10004-e8f2-537e-4f6c-d104768a1214';
+const IMU_CHAR_UUID = '19b10005-e8f2-537e-4f6c-d104768a1214';
 
-type DiagnosticInfo = {
-  ua: string;
-  isSecureContext: boolean;
-  inIframe: boolean;
-  hasBluetooth: boolean;
-  permissionState: string;
+// IMU Visualization constants
+const MAX_ACC = 4.0; // Max acceleration range in g
+
+type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
+
+interface ImuData {
+  ax: number;
+  ay: number;
+  az: number;
+  gx: number;
+  gy: number;
+  gz: number;
+}
+
+const AxisBar = ({ value, label }: { value: number, label: string }) => {
+    const clamped = Math.max(-MAX_ACC, Math.min(MAX_ACC, value));
+    const ratio = Math.abs(clamped) / MAX_ACC;
+    const offset = ratio * 50; // max 50%
+    const left = clamped >= 0 ? 50 : 50 - offset;
+  
+    return (
+      <div className="flex items-center gap-2 mb-2">
+        <span className="w-4 font-bold text-sm">{label}</span>
+        <div className="relative flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+          <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-muted-foreground/50" />
+          <div
+            className="absolute top-0 bottom-0 h-full rounded-full"
+            style={{
+              left: `${left}%`,
+              width: `${offset}%`,
+              backgroundColor: clamped >= 0 ? 'hsl(var(--accent))' : 'hsl(var(--primary))',
+            }}
+          />
+        </div>
+        <span className="w-20 text-right font-mono text-sm text-muted-foreground">{value.toFixed(3)}</span>
+      </div>
+    );
 };
+  
+const XYPlot = ({ ax, ay }: { ax: number, ay: number }) => {
+    const rMax = 70; // Usable radius
+    const mag = Math.sqrt(ax * ax + ay * ay);
+    const norm = Math.min(mag / MAX_ACC, 1.0);
+    const r = norm * rMax;
+    const angle = mag < 1e-3 ? 0 : Math.atan2(ay, ax);
+  
+    const x2 = 90 + r * Math.cos(angle);
+    const y2 = 90 - r * Math.sin(angle); // Y is inverted in SVG
+  
+    return (
+        <div className="flex flex-col items-center">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+                <circle cx="90" cy="90" r="80" stroke="hsl(var(--border))" strokeWidth="2" fill="hsl(var(--card))" />
+                <line x1="10" y1="90" x2="170" y2="90" stroke="hsl(var(--border))" strokeWidth="1" />
+                <line x1="90" y1="10" x2="90" y2="170" stroke="hsl(var(--border))" strokeWidth="1" />
+                <line x1="90" y1="90" x2={x2} y2={y2} stroke="hsl(var(--primary))" strokeWidth="3" strokeLinecap="round" />
+                <circle cx="90" cy="90" r="3" fill="hsl(var(--foreground))" />
+            </svg>
+            <p className="text-xs text-muted-foreground mt-2">XY Plane (Top-down view)</p>
+        </div>
+    );
+};
+
 
 export default function BluetoothConnect() {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [deviceName, setDeviceName] = useState<string | null>(null);
-  const [diagnostics, setDiagnostics] = useState<DiagnosticInfo | null>(null);
   const [log, setLog] = useState<string[]>([]);
-  const logRef = useRef<string[]>([]);
-
   const { toast } = useToast();
+
+  const deviceRef = useRef<BluetoothDevice | null>(null);
+  const ledCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+
+  const [ledState, setLedState] = useState<boolean | null>(null);
+  const [counter, setCounter] = useState<number | null>(null);
+  const [imuData, setImuData] = useState<ImuData | null>(null);
 
   const addLog = (message: string) => {
     console.log(message);
-    logRef.current = [...logRef.current, message];
-    setLog(logRef.current);
+    setLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
-  useEffect(() => {
-    const runDiagnostics = async () => {
-      const ua = navigator.userAgent;
-      const isSecureContext = window.isSecureContext;
-      const inIframe = window.self !== window.top;
-      const hasBluetooth = !!navigator.bluetooth;
+  const resetState = () => {
+    setDeviceName(null);
+    setStatus("disconnected");
+    setLedState(null);
+    setCounter(null);
+    setImuData(null);
+    deviceRef.current = null;
+    ledCharRef.current = null;
+  }
 
-      addLog('userAgent: ' + ua);
-      addLog('isSecureContext: ' + isSecureContext);
-      addLog('inIframe (self!==top): ' + inIframe);
-      addLog('navigator.bluetooth present: ' + hasBluetooth);
-
-      let permissionState = 'unknown';
-      if (navigator.permissions && navigator.permissions.query) {
-        try {
-          const p = await navigator.permissions.query({ name: 'bluetooth' as PermissionName });
-          permissionState = p.state;
-          addLog('navigator.permissions.query bluetooth -> ' + permissionState);
-        } catch (e: any) {
-          permissionState = 'error';
-          addLog('permissions.query error: ' + e.toString());
-        }
-      } else {
-        permissionState = 'not_supported';
-        addLog('navigator.permissions.query not available in this browser');
-      }
-
-      setDiagnostics({ ua, isSecureContext, inIframe, hasBluetooth, permissionState });
-      
-      if (!hasBluetooth || !isSecureContext) {
-        setStatus("unsupported");
-      }
-    };
-
-    runDiagnostics();
-  }, []);
+  const handleDisconnect = () => {
+    addLog('❌ Disconnected from device.');
+    resetState();
+    toast({
+        title: "Device Disconnected",
+        description: "The Bluetooth device has been disconnected.",
+    });
+  }
 
   const handleConnect = async () => {
-    if (!diagnostics?.hasBluetooth) {
+    if (!navigator.bluetooth) {
       toast({
         title: "Bluetooth Not Supported",
-        description: "Please check the diagnostic information for details.",
+        description: "Please use a compatible browser and ensure you are in a secure context (HTTPS).",
         variant: "destructive",
       });
       return;
@@ -85,140 +130,205 @@ export default function BluetoothConnect() {
     addLog("Requesting Bluetooth device...");
     try {
       const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ['generic_access']
+        filters: [{ namePrefix: 'XIAO' }],
+        optionalServices: [SERVICE_UUID]
       });
       
+      deviceRef.current = device;
       const deviceId = device.name || device.id;
-      addLog('Device chosen: ' + deviceId);
+      addLog(`Device chosen: ${deviceId}`);
       setDeviceName(deviceId);
+
+      device.addEventListener('gattserverdisconnected', handleDisconnect);
+
+      addLog('Connecting to GATT Server...');
+      const server = await device.gatt.connect();
       setStatus("connected");
+      addLog('✅ GATT Server connected.');
       
       toast({
         title: "Device Connected",
         description: `Successfully connected to ${deviceId}.`,
       });
 
-      device.addEventListener('gattserverdisconnected', () => {
-        addLog(`Device ${deviceId} disconnected.`);
-        setStatus("disconnected");
-        setDeviceName(null);
-        toast({
-          title: "Device Disconnected",
-          description: "The Bluetooth device has been disconnected.",
-        });
+      addLog('Getting primary service...');
+      const service = await server.getPrimaryService(SERVICE_UUID);
+
+      addLog('Getting characteristics...');
+      const ledChar = await service.getCharacteristic(LED_CHAR_UUID);
+      const counterChar = await service.getCharacteristic(COUNTER_UUID);
+      const imuChar = await service.getCharacteristic(IMU_CHAR_UUID);
+      ledCharRef.current = ledChar;
+
+      // Read initial values
+      const initialLed = await ledChar.readValue();
+      setLedState(initialLed.getUint8(0) !== 0);
+      addLog(`Initial LED state: ${initialLed.getUint8(0) !== 0 ? 'ON' : 'OFF'}`);
+
+      const initialCounter = await counterChar.readValue();
+      setCounter(initialCounter.getUint32(0, true));
+      addLog(`Initial counter: ${initialCounter.getUint32(0, true)}`);
+
+      // Start notifications
+      await ledChar.startNotifications();
+      ledChar.addEventListener('characteristicvaluechanged', (e) => {
+        const value = (e.target as BluetoothRemoteGATTCharacteristic).value!;
+        const isOn = value.getUint8(0) !== 0;
+        setLedState(isOn);
+        addLog(`LED notification: ${isOn ? 'ON' : 'OFF'}`);
       });
 
+      await counterChar.startNotifications();
+      counterChar.addEventListener('characteristicvaluechanged', (e) => {
+        const value = (e.target as BluetoothRemoteGATTCharacteristic).value!;
+        const count = value.getUint32(0, true);
+        setCounter(count);
+        addLog(`Counter notification: ${count}`);
+      });
+
+      await imuChar.startNotifications();
+      imuChar.addEventListener('characteristicvaluechanged', (e) => {
+        const v = (e.target as BluetoothRemoteGATTCharacteristic).value!;
+        if (v.byteLength < 24) return;
+        const data: ImuData = {
+          ax: v.getFloat32(0, true),
+          ay: v.getFloat32(4, true),
+          az: v.getFloat32(8, true),
+          gx: v.getFloat32(12, true),
+          gy: v.getFloat32(16, true),
+          gz: v.getFloat32(20, true),
+        };
+        setImuData(data);
+        // Don't log every IMU update to avoid flooding the log
+      });
+
+      addLog('✅ Ready for real-time data.');
+
     } catch (error: any) {
-      addLog('requestDevice error: ' + error.toString());
-      if (error.name === 'NotFoundError' || error.name === 'NotAllowedError') {
-        addLog('Note: The user may have cancelled the prompt or the context does not allow pairing.');
-        setStatus("disconnected");
-      } else {
-        setStatus("error");
-        setTimeout(() => setStatus("disconnected"), 3000);
-        toast({
-          title: "Connection Failed",
-          description: "Could not connect to the Bluetooth device. Please try again.",
-          variant: "destructive",
-        });
-      }
+      addLog(`Error: ${error.message}`);
+      setStatus("error");
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Could not connect. Check console for details.",
+        variant: "destructive",
+      });
+      setTimeout(() => setStatus("disconnected"), 3000);
     }
   };
 
-  const renderStatus = () => {
-    switch (status) {
-      case "connecting":
-        return {
-          icon: <BluetoothSearching className="h-6 w-6 animate-pulse text-primary" />,
-          text: "Searching for devices...",
-          buttonIcon: <Loader2 className="mr-2 h-4 w-4 animate-spin" />,
-          buttonText: "Connecting...",
-          disabled: true,
-        };
-      case "connected":
-        return {
-          icon: <BluetoothConnected className="h-6 w-6 text-accent" />,
-          text: `Connected to ${deviceName}`,
-          buttonIcon: <BluetoothConnected className="mr-2 h-4 w-4" />,
-          buttonText: "Connected",
-          disabled: true,
-        };
-      case "error":
-        return {
-          icon: <Bluetooth className="h-6 w-6 text-destructive" />,
-          text: "Connection failed",
-          buttonIcon: <Bluetooth className="mr-2 h-4 w-4" />,
-          buttonText: "Retry Connection",
-          disabled: false,
-        };
-      case "unsupported":
-      case "disconnected":
-      default:
-        return {
-          icon: <Bluetooth className="h-6 w-6 text-muted-foreground" />,
-          text: "Not connected",
-          buttonIcon: <Bluetooth className="mr-2 h-4 w-4" />,
-          buttonText: "Connect Device",
-          disabled: status === "unsupported",
-        };
+  const setLed = async (on: boolean) => {
+    if (!ledCharRef.current) {
+        addLog("LED characteristic not available.");
+        return;
     }
-  };
+    try {
+        const data = new Uint8Array([on ? 1 : 0]);
+        await ledCharRef.current.writeValue(data);
+        addLog(`Sent LED command: ${on ? 'ON' : 'OFF'}`);
+    } catch (error: any) {
+        addLog(`LED write error: ${error.message}`);
+        toast({ title: "LED Error", description: "Failed to control LED.", variant: "destructive" });
+    }
+  }
   
-  const { icon, text, buttonIcon, buttonText, disabled } = renderStatus();
+
+  const isConnected = status === "connected";
 
   return (
-    <Card>
+    <Card className="col-span-1 md:col-span-2">
       <CardHeader>
         <CardTitle>Bluetooth Connection</CardTitle>
-        <CardDescription>Connect to your Rundex-compatible BLE sensor in real-time.</CardDescription>
+        <CardDescription>Connect to your XIAO BLE sensor to stream live motion data.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center space-y-6 text-center pt-8">
-        {status === "unsupported" && diagnostics ? (
-          <div className="w-full text-left">
-             <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Bluetooth Not Supported</AlertTitle>
-              <AlertDescription>
-                Il browser non espone `navigator.bluetooth`. Possibili cause: browser non compatibile, contesto non sicuro (HTTPS), o esecuzione dentro un iframe.
-              </AlertDescription>
-            </Alert>
-            <div className="mt-4 space-y-2 text-sm">
-                <h4 className="font-semibold">Suggerimenti:</h4>
-                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                    {diagnostics.inIframe && (
-                        <li>
-                            <a href={window.location.href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
-                                Apri l'app in una nuova scheda
-                                <ExternalLink className="inline-block ml-1 h-4 w-4" />
-                            </a>
-                        </li>
-                    )}
-                    <li>Se usi un IDE cloud, pubblica su Firebase Hosting e testa l'URL pubblico.</li>
-                    <li>Su Linux: assicurati che il servizio `bluetooth` (BlueZ) sia attivo (`systemctl status bluetooth`).</li>
-                    <li>Su Android: usa Chrome e controlla "Impostazioni sito" → "Bluetooth".</li>
-                </ul>
-            </div>
-             <details className="mt-4 text-xs">
-                <summary className="cursor-pointer font-medium">Diagnostic Log</summary>
-                <pre className="mt-2 p-2 bg-muted rounded-md overflow-x-auto text-muted-foreground whitespace-pre-wrap">
-                  {log.join('\n')}
-                </pre>
-            </details>
-          </div>
-        ) : (
-          <>
-            <div className="p-4 bg-secondary rounded-full">
-                {icon}
-            </div>
-            <p className="font-medium">{text}</p>
-            <Button onClick={handleConnect} disabled={disabled} size="lg" className="font-semibold">
-              {buttonIcon}
-              {buttonText}
+      <CardContent className="space-y-6">
+        
+        <div className="flex flex-wrap items-center gap-4">
+            <Button onClick={handleConnect} disabled={isConnected || status === 'connecting'} size="lg">
+                {status === 'connecting' ? 'Connecting...' : 'Connect to XIAO'}
+                <Bluetooth className="ml-2 h-5 w-5" />
             </Button>
-          </>
+            <div className="flex items-center gap-4">
+                <Button onClick={() => setLed(true)} disabled={!isConnected} variant="outline">
+                    <Lightbulb className="mr-2"/> On
+                </Button>
+                <Button onClick={() => setLed(false)} disabled={!isConnected} variant="outline">
+                    <LightbulbOff className="mr-2"/> Off
+                </Button>
+            </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3 border rounded-lg p-4">
+            <div className="flex items-center gap-3">
+                <BluetoothConnected className="text-muted-foreground" />
+                <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant={isConnected ? "default" : "secondary"} className={isConnected ? "bg-accent text-accent-foreground" : ""}>
+                        {status}
+                    </Badge>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <Lightbulb className="text-muted-foreground" />
+                <div>
+                    <p className="text-sm text-muted-foreground">LED</p>
+                    <p className="font-semibold">
+                        {ledState === null ? 'Unknown' : (ledState ? 'ON' : 'OFF')}
+                    </p>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <Bot className="text-muted-foreground" />
+                <div>
+                    <p className="text-sm text-muted-foreground">Counter</p>
+                    <p className="font-semibold">{counter ?? '-'}</p>
+                </div>
+            </div>
+        </div>
+
+        {isConnected && (
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Activity /> IMU Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                {imuData ? (
+                    <div className="grid md:grid-cols-2 gap-6 items-center">
+                        <div>
+                            <AxisBar label="X" value={imuData.ax} />
+                            <AxisBar label="Y" value={imuData.ay} />
+                            <AxisBar label="Z" value={imuData.az} />
+                        </div>
+                        <div className="flex justify-center">
+                            <XYPlot ax={imuData.ax} ay={imuData.ay} />
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground text-center py-8">Waiting for IMU data...</p>
+                )}
+                </CardContent>
+            </Card>
         )}
+      
+        <div>
+            <h3 className="font-semibold mb-2">Log</h3>
+            <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/50">
+                {log.slice().reverse().map((entry, i) => (
+                    <p key={i} className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
+                        {entry}
+                    </p>
+                ))}
+                {log.length === 0 && <p className="text-xs text-muted-foreground">Log is empty.</p>}
+            </ScrollArea>
+        </div>
+
       </CardContent>
+      {isConnected && (
+        <CardFooter>
+            <Button variant="destructive" onClick={() => deviceRef.current?.gatt?.disconnect()}>Disconnect</Button>
+        </CardFooter>
+      )}
     </Card>
   );
 }
+
+    
