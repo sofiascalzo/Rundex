@@ -5,9 +5,10 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Bluetooth, BluetoothConnected, Lightbulb, LightbulbOff, Activity, ArrowRightLeft, Bot } from "lucide-react";
+import { Bluetooth, BluetoothConnected, Lightbulb, LightbulbOff, Activity, Bot, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from 'date-fns';
 
 // UUIDs from the Arduino sketch
 const SERVICE_UUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
@@ -27,6 +28,12 @@ interface ImuData {
   gx: number;
   gy: number;
   gz: number;
+}
+
+interface SessionDataPoint {
+  timestamp: string;
+  type: 'imu' | 'counter';
+  data: ImuData | { count: number };
 }
 
 const AxisBar = ({ value, label }: { value: number, label: string }) => {
@@ -87,6 +94,7 @@ export default function BluetoothConnect() {
 
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const ledCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  const sessionDataRef = useRef<SessionDataPoint[]>([]);
 
   const [ledState, setLedState] = useState<boolean | null>(null);
   const [counter, setCounter] = useState<number | null>(null);
@@ -94,7 +102,32 @@ export default function BluetoothConnect() {
 
   const addLog = (message: string) => {
     console.log(message);
-    setLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+    setLog(prev => [`${new Date().toLocaleTimeString()}: ${message}`, ...prev]);
+  };
+  
+  const saveSessionData = () => {
+    if (sessionDataRef.current.length === 0) {
+      addLog('No session data to save.');
+      return;
+    }
+
+    const dataStr = JSON.stringify(sessionDataRef.current, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const timestamp = format(new Date(), "yyyy-MM-dd'T'HH_mm_ss");
+    a.download = `rundex_session_${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addLog(`Session data saved to ${a.download}`);
+    toast({
+        title: "Session Saved",
+        description: `Data saved to ${a.download}`,
+        action: <Download className="h-5 w-5" />
+    });
   };
 
   const resetState = () => {
@@ -105,23 +138,26 @@ export default function BluetoothConnect() {
     setImuData(null);
     deviceRef.current = null;
     ledCharRef.current = null;
+    sessionDataRef.current = [];
   }
 
   const handleDisconnect = () => {
     addLog('❌ Disconnected from device.');
+    saveSessionData();
     resetState();
     toast({
         title: "Device Disconnected",
         description: "The Bluetooth device has been disconnected.",
     });
   }
-
+  
   const handleImuNotification = (event: Event) => {
-    const v = (event.target as BluetoothRemoteGATTCharacteristic).value;
-    if (!v || v.byteLength < 24) {
+    const target = event.target as BluetoothRemoteGATTCharacteristic;
+    if (!target.value || target.value.byteLength < 24) {
       addLog('Invalid IMU data received');
       return;
     }
+    const v = target.value;
     const data: ImuData = {
       ax: v.getFloat32(0, true),
       ay: v.getFloat32(4, true),
@@ -131,6 +167,13 @@ export default function BluetoothConnect() {
       gz: v.getFloat32(20, true),
     };
     setImuData(data);
+    
+    sessionDataRef.current.push({
+      timestamp: new Date().toISOString(),
+      type: 'imu',
+      data: data
+    });
+
     addLog(
         'IMU: ' +
         'ax=' + data.ax.toFixed(3) + ' ' +
@@ -141,6 +184,32 @@ export default function BluetoothConnect() {
         'gz=' + data.gz.toFixed(3)
     );
   }
+
+  const handleCounterNotification = (event: Event) => {
+    const value = (event.target as BluetoothRemoteGATTCharacteristic).value!;
+    if (value.byteLength < 4) {
+      addLog('Counter notification too short');
+      return;
+    }
+    const count = value.getUint32(0, true);
+    setCounter(count);
+    
+    sessionDataRef.current.push({
+        timestamp: new Date().toISOString(),
+        type: 'counter',
+        data: { count }
+    });
+
+    addLog(`Counter notification: ${count}`);
+  };
+
+  const handleLedNotification = (event: Event) => {
+    const value = (event.target as BluetoothRemoteGATTCharacteristic).value!;
+    const isOn = value.getUint8(0) !== 0;
+    setLedState(isOn);
+    addLog(`LED notification: ${isOn ? 'ON' : 'OFF'}`);
+  };
+
 
   const handleConnect = async () => {
     if (!navigator.bluetooth) {
@@ -171,6 +240,7 @@ export default function BluetoothConnect() {
       const server = await device.gatt.connect();
       setStatus("connected");
       addLog('✅ GATT Server connected.');
+      sessionDataRef.current = []; // Reset session data on new connection
       
       toast({
         title: "Device Connected",
@@ -197,20 +267,10 @@ export default function BluetoothConnect() {
 
       // Start notifications
       await ledChar.startNotifications();
-      ledChar.addEventListener('characteristicvaluechanged', (e) => {
-        const value = (e.target as BluetoothRemoteGATTCharacteristic).value!;
-        const isOn = value.getUint8(0) !== 0;
-        setLedState(isOn);
-        addLog(`LED notification: ${isOn ? 'ON' : 'OFF'}`);
-      });
+      ledChar.addEventListener('characteristicvaluechanged', handleLedNotification);
 
       await counterChar.startNotifications();
-      counterChar.addEventListener('characteristicvaluechanged', (e) => {
-        const value = (e.target as BluetoothRemoteGATTCharacteristic).value!;
-        const count = value.getUint32(0, true);
-        setCounter(count);
-        addLog(`Counter notification: ${count}`);
-      });
+      counterChar.addEventListener('characteristicvaluechanged', handleCounterNotification);
 
       await imuChar.startNotifications();
       imuChar.addEventListener('characteristicvaluechanged', handleImuNotification);
@@ -325,7 +385,7 @@ export default function BluetoothConnect() {
         <div>
             <h3 className="font-semibold mb-2">Log</h3>
             <ScrollArea className="h-48 w-full rounded-md border p-3 bg-muted/50">
-                {log.slice().reverse().map((entry, i) => (
+                {log.map((entry, i) => (
                     <p key={i} className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
                         {entry}
                     </p>
@@ -343,3 +403,5 @@ export default function BluetoothConnect() {
     </Card>
   );
 }
+
+    
