@@ -116,6 +116,32 @@ export default function BluetoothConnect() {
     });
   }
 
+  const handleImuNotification = (event: Event) => {
+    const v = (event.target as BluetoothRemoteGATTCharacteristic).value;
+    if (!v || v.byteLength < 24) {
+      addLog('Invalid IMU data received');
+      return;
+    }
+    const data: ImuData = {
+      ax: v.getFloat32(0, true),
+      ay: v.getFloat32(4, true),
+      az: v.getFloat32(8, true),
+      gx: v.getFloat32(12, true),
+      gy: v.getFloat32(16, true),
+      gz: v.getFloat32(20, true),
+    };
+    setImuData(data);
+    addLog(
+        'IMU: ' +
+        'ax=' + data.ax.toFixed(3) + ' ' +
+        'ay=' + data.ay.toFixed(3) + ' ' +
+        'az=' + data.az.toFixed(3) + ' | ' +
+        'gx=' + data.gx.toFixed(3) + ' ' +
+        'gy=' + data.gy.toFixed(3) + ' ' +
+        'gz=' + data.gz.toFixed(3)
+    );
+  }
+
   const handleConnect = async () => {
     if (!navigator.bluetooth) {
       toast({
@@ -187,28 +213,7 @@ export default function BluetoothConnect() {
       });
 
       await imuChar.startNotifications();
-      imuChar.addEventListener('characteristicvaluechanged', (e) => {
-        const v = (e.target as BluetoothRemoteGATTCharacteristic).value!;
-        if (v.byteLength < 24) return;
-        const data: ImuData = {
-          ax: v.getFloat32(0, true),
-          ay: v.getFloat32(4, true),
-          az: v.getFloat32(8, true),
-          gx: v.getFloat32(12, true),
-          gy: v.getFloat32(16, true),
-          gz: v.getFloat32(20, true),
-        };
-        setImuData(data);
-        addLog(
-            'IMU: ' +
-            'ax=' + data.ax.toFixed(3) + ' ' +
-            'ay=' + data.ay.toFixed(3) + ' ' +
-            'az=' + data.az.toFixed(3) + ' | ' +
-            'gx=' + data.gx.toFixed(3) + ' ' +
-            'gy=' + data.gy.toFixed(3) + ' ' +
-            'gz=' + data.gz.toFixed(3)
-        );
-      });
+      imuChar.addEventListener('characteristicvaluechanged', handleImuNotification);
 
       addLog('✅ Ready for real-time data.');
 
