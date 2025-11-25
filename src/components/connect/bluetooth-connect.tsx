@@ -199,7 +199,15 @@ export default function BluetoothConnect() {
           gz: v.getFloat32(20, true),
         };
         setImuData(data);
-        // Don't log every IMU update to avoid flooding the log
+        addLog(
+            'IMU: ' +
+            'ax=' + data.ax.toFixed(3) + ' ' +
+            'ay=' + data.ay.toFixed(3) + ' ' +
+            'az=' + data.az.toFixed(3) + ' | ' +
+            'gx=' + data.gx.toFixed(3) + ' ' +
+            'gy=' + data.gy.toFixed(3) + ' ' +
+            'gz=' + data.gz.toFixed(3)
+        );
       });
 
       addLog('✅ Ready for real-time data.');
@@ -330,7 +338,3 @@ export default function BluetoothConnect() {
     </Card>
   );
 }
-
-    
-
-    
