@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef }s from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -330,5 +330,7 @@ export default function BluetoothConnect() {
     </Card>
   );
 }
+
+    
 
     
