@@ -18,7 +18,12 @@ export default function DashboardPage() {
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
-        setRunData(parsedData);
+        // Ensure parsed data is an array before setting it
+        if (Array.isArray(parsedData)) {
+          setRunData(parsedData);
+        } else {
+          setRunData(defaultMockRunData);
+        }
       } catch (error) {
         console.error("Failed to parse run data from session storage:", error);
         setRunData(defaultMockRunData);
