@@ -33,7 +33,7 @@ export default function PostureIndicator({ value }: { value: number }) {
           <span>High Risk</span>
           <span>Low Risk</span>
         </div>
-        <p className="text-center text-3xl font-bold text-primary">{value.toFixed(1)}<span className="text-lg text-muted-foreground">/10 error score</span></p>
+        <p className="text-center text-3xl font-bold text-primary">{value}<span className="text-lg text-muted-foreground">/10 error score</span></p>
       </CardContent>
     </Card>
   );

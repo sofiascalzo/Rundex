@@ -14,16 +14,12 @@ export default function DashboardPage() {
   const [runData, setRunData] = useState<RunData[] | null>(null);
 
   useEffect(() => {
+    // This effect runs only on the client side
     const uploadedDataString = sessionStorage.getItem("uploadedRunData");
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
-        if (Array.isArray(parsedData)) {
-          setRunData(parsedData);
-        } else {
-          console.warn("Parsed data from session storage is not an array. Using default data.");
-          setRunData(defaultMockRunData);
-        }
+        setRunData(Array.isArray(parsedData) ? parsedData : defaultMockRunData);
       } catch (error) {
         console.error("Failed to parse run data from session storage:", error);
         setRunData(defaultMockRunData);
@@ -74,7 +70,7 @@ export default function DashboardPage() {
           <StatCard title="Average Speed" value={`${avgSpeed} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across your session" />
           <StatCard title="Total Steps" value={totalSteps.toString()} icon={<Footprints className="h-5 w-5 text-muted-foreground" />} description="From session data" />
           <StatCard title="Average Stride" value={`${avgStride} m`} icon={<Gauge className="h-5 w-5 text-muted-foreground" />} description="Consistent performance" />
-          <StatCard title="Posture Score" value={latestData.posture_error.toFixed(1)} icon={<Activity className="h-5 w-5 text-muted-foreground" />} description="Lower is better" />
+          <StatCard title="Posture Score" value={latestData.posture_error} icon={<Activity className="h-5 w-5 text-muted-foreground" />} description="Lower is better" />
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="lg:col-span-2">
