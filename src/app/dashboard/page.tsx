@@ -18,11 +18,9 @@ export default function DashboardPage() {
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
-        // Ensure parsed data is an array before setting it
         if (Array.isArray(parsedData)) {
           setRunData(parsedData);
         } else {
-          // If parsed data isn't an array, fall back to mock data
           console.warn("Parsed data from session storage is not an array. Using default data.");
           setRunData(defaultMockRunData);
         }
@@ -31,7 +29,6 @@ export default function DashboardPage() {
         setRunData(defaultMockRunData);
       }
     } else {
-      // If no data in session storage, use mock data
       setRunData(defaultMockRunData);
     }
   }, []);
