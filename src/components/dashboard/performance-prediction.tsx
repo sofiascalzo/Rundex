@@ -7,7 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Wand2 } from "lucide-react";
+import { Wand2, Bot } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -36,6 +36,9 @@ export default function PerformancePrediction() {
     setIsLoading(true);
     setPrediction(null);
     try {
+      // In a real implementation, this would call a Cloud Function
+      // which then uses Genkit, calls the avatar API, and saves to Firestore.
+      // For now, we'll just call the Genkit flow directly.
       const pastRunningData = JSON.stringify(mockRunData);
       const result = await performancePredictions({
         pastRunningData,
@@ -58,11 +61,11 @@ export default function PerformancePrediction() {
     <Card className="col-span-1 lg:col-span-3">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-            <Wand2 className="text-primary" />
-            AI Performance Prediction
+            <Bot className="text-primary" />
+            AI Coach Feedback
         </CardTitle>
         <CardDescription>
-          Get AI-powered insights for your next run. Describe the environmental conditions and get your prediction.
+          Describe the environmental conditions for your run to receive personalized feedback and predictions from your AI coach.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -86,42 +89,60 @@ export default function PerformancePrediction() {
             />
             <Button type="submit" disabled={isLoading} className="font-semibold">
               <Wand2 className="mr-2 h-4 w-4" />
-              {isLoading ? "Generating..." : "Generate Prediction"}
+              {isLoading ? "Generating insights and preparing avatar..." : "Get Coach Feedback"}
             </Button>
           </form>
         </Form>
         {isLoading && (
-          <div className="space-y-4 pt-4">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-20 w-full" />
+          <div className="space-y-6 pt-4">
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-24 w-24 rounded-full" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-6 w-1/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </div>
+             <div className="space-y-2">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-16 w-full" />
+            </div>
           </div>
         )}
         {prediction && (
-          <div className="pt-6 grid gap-6 sm:grid-cols-1">
+          <div className="pt-6 grid gap-6">
+            <div className="flex flex-col sm:flex-row items-start gap-6">
+                <div className="w-full sm:w-64 h-64 bg-card border rounded-lg flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                        <Bot size={48} className="mx-auto"/>
+                        <p className="mt-2 text-sm">Avatar Player</p>
+                    </div>
+                </div>
+                <div className="flex-1 space-y-4">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Estimated Finish Time</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-primary font-bold text-3xl">{prediction.estimatedFinishTime}</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Risk Assessment</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-amber-400">{prediction.riskAssessment}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Estimated Finish Time</CardTitle>
+                <CardTitle className="text-lg">Coach's Advice: Optimal Pacing Strategy</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-primary font-bold text-3xl">{prediction.estimatedFinishTime}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Optimal Pacing Strategy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{prediction.optimalPacingStrategy}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Risk Assessment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-amber-400">{prediction.riskAssessment}</p>
+                <p className="text-muted-foreground whitespace-pre-line">{prediction.optimalPacingStrategy}</p>
               </CardContent>
             </Card>
           </div>
