@@ -2,15 +2,9 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { mockRunData } from "@/lib/mock-data";
 import { RunData } from "@/lib/types";
 import { format } from "date-fns";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
-
-const chartData = mockRunData.map(d => ({
-    ...d,
-    time: format(new Date(d.timestamp), "HH:mm:ss")
-}));
 
 const chartConfig = {
     speed: {
@@ -19,7 +13,12 @@ const chartConfig = {
     },
 };
 
-export default function SpeedChart() {
+export default function SpeedChart({ data }: { data: RunData[] }) {
+    const chartData = data.map(d => ({
+        ...d,
+        time: format(new Date(d.timestamp), "HH:mm:ss")
+    }));
+
     return (
         <Card>
             <CardHeader>
