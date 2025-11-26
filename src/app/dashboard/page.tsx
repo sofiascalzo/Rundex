@@ -28,7 +28,7 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Loading State
+  // 1. Loading State
   if (!runData) {
     return (
       <AppLayout>
@@ -40,7 +40,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Empty State
+  // 2. Empty State
   if (runData.length === 0) {
     return (
       <AppLayout>
@@ -55,13 +55,12 @@ export default function DashboardPage() {
     );
   }
 
-  // Data is available, so we can safely calculate stats.
+  // 3. Data Loaded State: Calculations are safe now.
   const latestData = runData[runData.length - 1];
   const avgSpeed = (runData.reduce((acc, d) => acc + d.speed, 0) / runData.length).toFixed(2);
   const avgStride = (runData.reduce((acc, d) => acc + d.stride_length, 0) / runData.length).toFixed(2);
   const totalSteps = runData.reduce((maxSteps, d) => Math.max(maxSteps, d.step_count), 0);
 
-  // Data Loaded State
   return (
     <AppLayout>
       <div className="space-y-8">
