@@ -1,7 +1,13 @@
+export interface ImuSample {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface RunData {
   timestamp: string;
-  accel?: { x: number; y: number; z: number };
-  gyro?: { x: number; y: number; z: number };
+  accel?: ImuSample;
+  gyro?: ImuSample;
   speed: number;
   stride_length: number;
   step_count: number;
