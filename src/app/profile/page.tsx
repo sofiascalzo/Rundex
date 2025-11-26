@@ -1,7 +1,7 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,9 +14,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Save } from "lucide-react";
+import { Save, Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Metadata } from "next";
 
 // This is a client component, so we can't export metadata directly.
 // We can set the title via useEffect.
@@ -27,7 +26,7 @@ import type { Metadata } from "next";
 
 const profileFormSchema = z.object({
   nickname: z.string().min(2, { message: "Nickname must be at least 2 characters." }).max(50),
-  avatarUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  avatarUrl: z.string(),
   weight: z.coerce.number().positive({ message: "Weight must be a positive number." }),
 });
 
@@ -38,6 +37,7 @@ export default function ProfilePage() {
 
   const { profile, saveProfile, isLoaded } = useUserProfile();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -58,11 +58,19 @@ export default function ProfilePage() {
     }
   }, [isLoaded, profile, form]);
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        form.setValue("avatarUrl", e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
-    saveProfile({
-        ...values,
-        avatarUrl: values.avatarUrl || "https://picsum.photos/seed/rundex-user/100/100"
-    });
+    saveProfile(values);
     toast({
       title: "Profile Updated",
       description: "Your information has been saved successfully.",
@@ -105,20 +113,20 @@ export default function ProfilePage() {
                         <AvatarImage src={avatarUrl} alt={nickname} data-ai-hint="person running" />
                         <AvatarFallback>{nickname?.substring(0, 2).toUpperCase() || 'JD'}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-grow">
-                        <FormField
-                        control={form.control}
-                        name="avatarUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Profile Picture URL</FormLabel>
-                            <FormControl>
-                                <Input placeholder="https://example.com/avatar.png" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
+                    <div className="flex-grow space-y-2">
+                      <FormLabel>Profile Picture</FormLabel>
+                      <Input 
+                        type="file" 
+                        className="hidden" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange}
+                        accept="image/png, image/jpeg, image/gif"
+                      />
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                      </Button>
+                      <p className="text-xs text-muted-foreground">Recommended: Square image, under 1MB.</p>
                     </div>
                   </div>
 
