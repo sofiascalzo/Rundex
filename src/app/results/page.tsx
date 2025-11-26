@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from 'next/dynamic';
 import AppLayout from "@/components/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,9 +10,19 @@ import { analyzeRunData, GaitMetrics } from "@/lib/gait-analysis";
 import type { RunData } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Loader2, Info, BarChart3 } from "lucide-react";
+import { mockRunData } from "@/lib/mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Dynamically import the map component to avoid SSR issues with Leaflet
+const RunMap = dynamic(() => import('@/components/results/run-map'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[400px] w-full" />,
+});
+
 
 export default function ResultsPage() {
   const [metrics, setMetrics] = useState<GaitMetrics | null>(null);
+  const [runData, setRunData] = useState<RunData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { profile } = useUserProfile();
 
@@ -24,25 +35,28 @@ export default function ResultsPage() {
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
-        if (Array.isArray(parsedData)) {
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
           dataToAnalyze = parsedData;
         }
       } catch (error) {
         console.error("Failed to parse run data from session storage:", error);
       }
     }
-    
-    if (dataToAnalyze.length > 0) {
-      // Simulate processing time for a better user experience
-      setTimeout(() => {
-        const analysisResults = analyzeRunData(dataToAnalyze, profile);
-        setMetrics(analysisResults);
-        setIsLoading(false);
-      }, 500);
-    } else {
-      setMetrics(null);
-      setIsLoading(false);
+
+    if (dataToAnalyze.length === 0) {
+        // Fallback to mock data if no valid data is in session storage
+        dataToAnalyze = mockRunData;
     }
+    
+    setRunData(dataToAnalyze);
+
+    // Simulate processing time for a better user experience
+    setTimeout(() => {
+      const analysisResults = analyzeRunData(dataToAnalyze, profile);
+      setMetrics(analysisResults);
+      setIsLoading(false);
+    }, 500);
+
   }, [profile]);
 
   // 1. Loading State
@@ -57,7 +71,7 @@ export default function ResultsPage() {
     );
   }
 
-  // 2. No Data State
+  // 2. No Data State (metrics could be null if analysis fails)
   if (!metrics) {
     return (
       <AppLayout>
@@ -65,7 +79,7 @@ export default function ResultsPage() {
             <Info className="h-8 w-8 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold">No Data to Analyze</h2>
             <p className="text-muted-foreground max-w-md mt-2">
-              Please go to the "Connect" page to upload a session file. Once uploaded, your results will appear here.
+              Could not analyze run data. Please go to the "Connect" page to upload a valid session file.
             </p>
         </div>
       </AppLayout>
@@ -77,6 +91,9 @@ export default function ResultsPage() {
     <AppLayout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold font-headline tracking-wide">Analysis Results</h1>
+        
+        <RunMap runData={runData} />
+
          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -92,6 +109,7 @@ export default function ResultsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[250px]">Metric</TableHead>
+
                             <TableHead>Value</TableHead>
                         </TableRow>
                     </TableHeader>

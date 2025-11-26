@@ -13,6 +13,10 @@ export interface RunData {
   step_count: number;
   posture_error: number;
   run_phase?: string; // e.g., 'stance', 'swing'
+  position?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface UserProfile {
