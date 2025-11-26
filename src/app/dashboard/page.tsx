@@ -1,62 +1,18 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
 import AppLayout from "@/components/app-layout";
 import PostureIndicator from "@/components/dashboard/posture-indicator";
 import SpeedChart from "@/components/dashboard/speed-chart";
 import StatCard from "@/components/dashboard/stat-card";
 import { mockRunData as defaultMockRunData } from "@/lib/mock-data";
-import { Activity, Footprints, Gauge, TrendingUp, Loader2, Info } from "lucide-react";
-import type { RunData } from "@/lib/types";
+import { Activity, Footprints, Gauge, TrendingUp } from "lucide-react";
 
 export default function DashboardPage() {
-  const [runData, setRunData] = useState<RunData[] | null>(null);
+  // The dashboard will now consistently show mock data as a general overview.
+  // The detailed analysis of uploaded data is moved to the new "Results" page.
+  const runData = defaultMockRunData;
 
-  useEffect(() => {
-    // This effect runs only on the client side
-    const uploadedDataString = sessionStorage.getItem("uploadedRunData");
-    if (uploadedDataString) {
-      try {
-        const parsedData = JSON.parse(uploadedDataString);
-        setRunData(Array.isArray(parsedData) ? parsedData : defaultMockRunData);
-      } catch (error) {
-        console.error("Failed to parse run data from session storage:", error);
-        setRunData(defaultMockRunData);
-      }
-    } else {
-      setRunData(defaultMockRunData);
-    }
-  }, []);
-
-  // 1. Loading State: runData is null
-  if (!runData) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-4 text-muted-foreground">Loading dashboard data...</p>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  // 2. Empty State: runData is an empty array
-  if (runData.length === 0) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col items-center justify-center h-full text-center">
-            <Info className="h-8 w-8 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold">No Run Data Available</h2>
-            <p className="text-muted-foreground max-w-md mt-2">
-              The uploaded session file seems to be empty. Please connect a device or upload a valid session file to see your dashboard.
-            </p>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  // 3. Data Loaded State: All calculations are safe now because we know runData is a non-empty array.
   const latestData = runData[runData.length - 1];
   const avgSpeed = (runData.reduce((acc, d) => acc + d.speed, 0) / runData.length).toFixed(2);
   const avgStride = (runData.reduce((acc, d) => acc + d.stride_length, 0) / runData.length).toFixed(2);
