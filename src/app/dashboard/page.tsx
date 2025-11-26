@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +7,7 @@ import PostureIndicator from "@/components/dashboard/posture-indicator";
 import SpeedChart from "@/components/dashboard/speed-chart";
 import StatCard from "@/components/dashboard/stat-card";
 import { mockRunData as defaultMockRunData } from "@/lib/mock-data";
-import { Activity, Footprints, Gauge, TrendingUp, Loader2 } from "lucide-react";
+import { Activity, Footprints, Gauge, TrendingUp, Loader2, Info } from "lucide-react";
 import type { RunData } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -18,8 +19,6 @@ export default function DashboardPage() {
       try {
         const parsedData = JSON.parse(uploadedDataString);
         setRunData(parsedData);
-        // Optional: clear the data after use so it doesn't persist across reloads
-        // sessionStorage.removeItem("uploadedRunData");
       } catch (error) {
         console.error("Failed to parse run data from session storage:", error);
         setRunData(defaultMockRunData);
@@ -34,7 +33,21 @@ export default function DashboardPage() {
       <AppLayout>
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-4 text-muted-foreground">Loading dashboard...</p>
+            <p className="ml-4 text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (runData.length === 0) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center h-full text-center">
+            <Info className="h-8 w-8 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold">No Run Data Available</h2>
+            <p className="text-muted-foreground max-w-md mt-2">
+              It seems there is no data to display. Please connect a device or upload a session file to see your dashboard.
+            </p>
         </div>
       </AppLayout>
     );
