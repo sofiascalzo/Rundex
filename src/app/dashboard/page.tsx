@@ -22,6 +22,8 @@ export default function DashboardPage() {
         if (Array.isArray(parsedData)) {
           setRunData(parsedData);
         } else {
+          // If parsed data isn't an array, fall back to mock data
+          console.warn("Parsed data from session storage is not an array. Using default data.");
           setRunData(defaultMockRunData);
         }
       } catch (error) {
@@ -29,11 +31,12 @@ export default function DashboardPage() {
         setRunData(defaultMockRunData);
       }
     } else {
+      // If no data in session storage, use mock data
       setRunData(defaultMockRunData);
     }
   }, []);
 
-  // 1. Loading State
+  // 1. Loading State: runData is null
   if (!runData) {
     return (
       <AppLayout>
@@ -45,7 +48,7 @@ export default function DashboardPage() {
     );
   }
 
-  // 2. Empty State
+  // 2. Empty State: runData is an empty array
   if (runData.length === 0) {
     return (
       <AppLayout>
@@ -53,14 +56,14 @@ export default function DashboardPage() {
             <Info className="h-8 w-8 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold">No Run Data Available</h2>
             <p className="text-muted-foreground max-w-md mt-2">
-              It seems there is no data to display. Please connect a device or upload a session file to see your dashboard.
+              The uploaded session file seems to be empty. Please connect a device or upload a valid session file to see your dashboard.
             </p>
         </div>
       </AppLayout>
     );
   }
 
-  // 3. Data Loaded State: Calculations are safe now.
+  // 3. Data Loaded State: All calculations are safe now because we know runData is a non-empty array.
   const latestData = runData[runData.length - 1];
   const avgSpeed = (runData.reduce((acc, d) => acc + d.speed, 0) / runData.length).toFixed(2);
   const avgStride = (runData.reduce((acc, d) => acc + d.stride_length, 0) / runData.length).toFixed(2);
