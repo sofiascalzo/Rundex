@@ -45,32 +45,14 @@ export interface UserProfile {
 
 // --- GAIT ANALYSIS TYPES ---
 
-export interface StepMetric {
-  i: number;
-  tFS: number;
-  tTO: number;
-  tFS2: number;
-  CT: number;
-  FT: number;
-  Tstep: number;
-  L: number;
-  vmean: number;
-  apeak: number;
-  Fpeak: number;
-}
-
-export interface GaitAnalysisSummary {
-  nSteps: number;
-  totalDistance: number;
-  avgSpeed: number;
-}
-
-export interface GaitAnalysisResult {
-  steps: StepMetric[];
-  summary: GaitAnalysisSummary;
-  a_dyn: { t: number; ax: number; ay: number; az: number; }[];
-  pos: { x: number; y: number; z: number; }[];
-  vel: { vx: number; vy: number; vz: number; }[];
-  quats: number[][];
-  dataWithPositions?: RawRunDataEntry[];
+export interface StepMetrics {
+  index: number;
+  CT: number;       // Contact Time (s)
+  FT: number;       // Flight Time (s)
+  Tstep: number;    // Step Duration (s)
+  cadencePmin: number; // Cadence (steps/min)
+  Li: number;       // Step Length (m)
+  vi: number;       // Step Speed (m/s)
+  pitchDeg: number; // Pitch angle at foot strike (degrees)
+  rollDeg: number;  // Roll angle at foot strike (degrees)
 }
