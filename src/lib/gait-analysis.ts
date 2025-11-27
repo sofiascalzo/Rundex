@@ -1,3 +1,4 @@
+
 // src/lib/gait-analysis.ts
 import * as quat from "gl-matrix/quat";
 import * as vec3 from "gl-matrix/vec3";
@@ -5,6 +6,20 @@ import * as mat3 from "gl-matrix/mat3";
 import type { ImuSample, GaitAnalysisResult, StepMetric, UserProfile, RawRunDataEntry } from './types';
 
 type Params = { samplingHz: number; mass: number; thresholdFs?: number; TminMs?: number; };
+
+/**
+ * toSeconds: converts various timestamp formats to seconds.
+ */
+const toSeconds = (ts: any): number => {
+    if (typeof ts === "number") {
+      if (ts > 1e12) return ts / 1e9; // nanoseconds?
+      if (ts > 1e9)  return ts / 1000; // milliseconds
+      return ts; // seconds
+    }
+    const n = Date.parse(String(ts));
+    if (!isNaN(n)) return n / 1000;
+    return 0;
+};
 
 /**
  * normalizeRunData: takes the parsed JSON array (sortedData) and returns ImuSample[]
@@ -20,17 +35,6 @@ function normalizeRunData(sortedData: RawRunDataEntry[]): ImuSample[] {
   }
 
   const imuRaw = sortedData.filter(e => e && e.type === "imu" && e.data);
-
-  const toSeconds = (ts: any): number => {
-    if (typeof ts === "number") {
-      if (ts > 1e12) return ts / 1e9;
-      if (ts > 1e9)  return ts / 1000;
-      return ts;
-    }
-    const n = Date.parse(String(ts));
-    if (!isNaN(n)) return n / 1000;
-    return 0;
-  };
 
   const prelim = imuRaw.map((e) => {
     const d = e.data ?? {};
