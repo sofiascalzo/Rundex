@@ -13,7 +13,7 @@ type RunMapProps = {
   path?: LatLngExpression[];
   startPoint?: LatLngExpression;
   endPoint?: LatLngExpression;
-  runId?: string | number;
+  mapKey: string; // Force remount with a new key
   zoom?: number;
   height?: string | number;
 };
@@ -23,14 +23,10 @@ export default function RunMap({
   path = [],
   startPoint,
   endPoint,
-  runId = "default",
+  mapKey,
   zoom = 15,
   height = "400px",
 }: RunMapProps) {
-  
-  // A unique key is crucial for react-leaflet to properly re-render the map
-  // when its container or data changes, preventing initialization errors.
-  const mapKey = `runmap-${String(runId)}`;
 
   return (
     <Card>
@@ -43,7 +39,7 @@ export default function RunMap({
         <CardContent>
             <div style={{ borderRadius: "var(--radius)", overflow: "hidden" }}>
                 <MapContainer
-                    key={mapKey}
+                    key={mapKey} // Crucial for forcing a re-render
                     center={center}
                     zoom={zoom}
                     scrollWheelZoom={true}

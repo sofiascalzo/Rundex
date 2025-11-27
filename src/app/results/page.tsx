@@ -85,6 +85,8 @@ export default function ResultsPage() {
     endPoint = path[path.length - 1];
   }
 
+  const mapKey = `run-map-${runId}-${center ? (center as number[]).join('-') : 'no-center'}`;
+
 
   if (isLoading) {
     return (
@@ -124,7 +126,7 @@ export default function ResultsPage() {
 
         {center ? (
             <RunMap 
-                runId={runId}
+                mapKey={mapKey}
                 center={center as [number, number]}
                 path={path as [number, number][]}
                 startPoint={startPoint as [number, number]}
