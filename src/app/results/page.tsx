@@ -41,6 +41,7 @@ export default function ResultsPage() {
   const runId = useId();
 
   useEffect(() => {
+    document.title = "Rundex - Results";
     setIsLoading(true);
     const uploadedDataString = sessionStorage.getItem("uploadedRunData");
     
@@ -65,7 +66,7 @@ export default function ResultsPage() {
       setIsLoading(false);
     }, 500);
 
-  }, [profile, runId]); // Depend on runId to allow re-analysis if needed
+  }, [profile, runId]);
 
   // Prepare map data
   const positions = analysis?.dataWithPositions
