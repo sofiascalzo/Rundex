@@ -1,3 +1,4 @@
+
 // src/app/results/page.tsx
 "use client";
 
@@ -6,12 +7,13 @@ import dynamic from 'next/dynamic';
 import AppLayout from "@/components/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { analyzeRunData, GaitMetrics } from "@/lib/gait-analysis";
-import type { RunData } from "@/lib/types";
+import { analyzeRunData } from "@/lib/gait-analysis";
+import type { GaitAnalysisResult, StepMetric } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { Loader2, Info, BarChart3 } from "lucide-react";
+import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "lucide-react";
 import { mockRunData } from "@/lib/mock-data";
 import { Skeleton } from "@/components/ui/skeleton";
+import StatCard from "@/components/dashboard/stat-card";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const RunMap = dynamic(() => import('@/components/results/run-map'), {
@@ -19,19 +21,17 @@ const RunMap = dynamic(() => import('@/components/results/run-map'), {
   loading: () => <Skeleton className="h-[400px] w-full" />,
 });
 
-
 export default function ResultsPage() {
-  const [metrics, setMetrics] = useState<GaitMetrics | null>(null);
-  const [runData, setRunData] = useState<RunData[]>([]);
+  const [analysis, setAnalysis] = useState<GaitAnalysisResult | null>(null);
+  const [runData, setRunData] = useState<any[]>([]); // Keep original data for map
   const [isLoading, setIsLoading] = useState(true);
   const { profile } = useUserProfile();
 
   useEffect(() => {
-    // This effect runs only on the client side
     setIsLoading(true);
     const uploadedDataString = sessionStorage.getItem("uploadedRunData");
     
-    let dataToAnalyze: RunData[] = [];
+    let dataToAnalyze: any[] = [];
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
@@ -44,96 +44,97 @@ export default function ResultsPage() {
     }
 
     if (dataToAnalyze.length === 0) {
-        // Fallback to mock data if no valid data is in session storage
         dataToAnalyze = mockRunData;
     }
     
     setRunData(dataToAnalyze);
 
-    // Simulate processing time for a better user experience
     setTimeout(() => {
-      const analysisResults = analyzeRunData(dataToAnalyze, profile);
-      setMetrics(analysisResults);
+      if(dataToAnalyze.length > 0) {
+        const analysisResults = analyzeRunData(dataToAnalyze, profile);
+        setAnalysis(analysisResults);
+      }
       setIsLoading(false);
     }, 500);
 
   }, [profile]);
 
-  // 1. Loading State
   if (isLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-4 text-muted-foreground">Analyzing run data...</p>
+            <p className="ml-4 text-muted-foreground">Analyzing run data with advanced pipeline...</p>
         </div>
       </AppLayout>
     );
   }
 
-  // 2. No Data State (metrics could be null if analysis fails)
-  if (!metrics) {
+  if (!analysis) {
     return (
       <AppLayout>
         <div className="flex flex-col items-center justify-center h-full text-center">
             <Info className="h-8 w-8 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold">No Data to Analyze</h2>
             <p className="text-muted-foreground max-w-md mt-2">
-              Could not analyze run data. Please go to the "Connect" page to upload a valid session file.
+              Could not analyze run data. The file might be empty or in an unsupported format. Please go to the "Connect" page to upload a valid session file.
             </p>
         </div>
       </AppLayout>
     );
   }
 
-  // 3. Data Loaded State
   return (
     <AppLayout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold font-headline tracking-wide">Analysis Results</h1>
         
+        <div className="grid gap-4 md:grid-cols-3">
+            <StatCard title="Total Steps" value={analysis.summary.nSteps.toString()} icon={<Footprints className="h-5 w-5 text-muted-foreground" />} description="From IMU processing" />
+            <StatCard title="Total Distance" value={`${analysis.summary.totalDistance.toFixed(2)} m`} icon={<LocateFixed className="h-5 w-5 text-muted-foreground" />} description="Calculated via ZUPT" />
+            <StatCard title="Average Speed" value={`${analysis.summary.avgSpeed.toFixed(2)} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across the session" />
+        </div>
+
         <RunMap runData={runData} />
 
          <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="text-primary"/>
-                    Gait Metrics Summary
+                    Step-by-Step Metrics
                 </CardTitle>
                 <CardDescription>
-                    Here is a summary of the key metrics from your last run.
+                    Detailed metrics for each step detected during the run.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[250px]">Metric</TableHead>
-
-                            <TableHead>Value</TableHead>
+                            <TableHead>Step</TableHead>
+                            <TableHead>CT (s)</TableHead>
+                            <TableHead>FT (s)</TableHead>
+                            <TableHead>Length (m)</TableHead>
+                            <TableHead>Speed (m/s)</TableHead>
+                            <TableHead>Peak Force (N)</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow>
-                            <TableCell className="font-medium">Total Steps</TableCell>
-                            <TableCell>{metrics.totalSteps}</TableCell>
-                        </TableRow>
-                         <TableRow>
-                            <TableCell className="font-medium">Total Distance</TableCell>
-                            <TableCell>{metrics.totalDistance.toFixed(2)} m</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium">Average Speed</TableCell>
-                            <TableCell>{metrics.averageSpeed.toFixed(2)} m/s</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium">Average Cadence</TableCell>
-                            <TableCell>{metrics.averageCadence.toFixed(0)} steps/min</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell className="font-medium">Average Stride Length</TableCell>
-                            <TableCell>{metrics.averageStrideLength.toFixed(2)} m</TableCell>
-                        </TableRow>
+                        {analysis.steps.map((step) => (
+                             <TableRow key={step.i}>
+                                <TableCell className="font-medium">{step.i + 1}</TableCell>
+                                <TableCell>{step.CT.toFixed(3)}</TableCell>
+                                <TableCell>{step.FT.toFixed(3)}</TableCell>
+                                <TableCell>{step.L.toFixed(2)}</TableCell>
+                                <TableCell>{step.vmean.toFixed(2)}</TableCell>
+                                <TableCell>{step.Fpeak.toFixed(0)}</TableCell>
+                            </TableRow>
+                        ))}
+                        {analysis.steps.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center text-muted-foreground">No steps detected.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
