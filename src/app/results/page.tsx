@@ -1,7 +1,7 @@
 // src/app/results/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/app-layout";
 import { useToast } from "@/hooks/use-toast";
 import type { RawRunDataEntry, StepMetrics } from "@/lib/types";
@@ -20,58 +20,36 @@ import { Info } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { processIMUData } from "@/lib/imu-processor";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const RUN_DATA_STORAGE_KEY = "rundex-run-data";
+import { useRunData } from "@/context/run-data-context";
 
 export default function ResultsPage() {
   const { toast } = useToast();
   const { profile } = useUserProfile();
+  const { runData: rawData, isLoading: isRunDataLoading } = useRunData();
   const [analysisResults, setAnalysisResults] = useState<StepMetrics[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  
   useEffect(() => {
-    function processAndAnalyze() {
-      setIsLoading(true);
-      let rawData: RawRunDataEntry[] | null = null;
+    if (isRunDataLoading) return; // Wait until run data is loaded from context
+
+    if (rawData && rawData.length > 0) {
       try {
-        const storedData = localStorage.getItem(RUN_DATA_STORAGE_KEY);
-        if (storedData) {
-          rawData = JSON.parse(storedData);
-        }
-      } catch (error) {
-        console.error("Failed to parse run data from localStorage:", error);
+        const results = processIMUData(rawData, profile.weight);
+        setAnalysisResults(results);
+      } catch (error: any) {
+        console.error("Failed to process run data:", error);
         toast({
-          title: "Error Reading Data",
-          description: "Could not read the saved run data from your browser.",
+          title: "Analysis Error",
+          description: error.message || "Could not analyze the provided run data.",
           variant: "destructive",
         });
-        setIsLoading(false);
-        return;
-      }
-      
-      if (rawData && rawData.length > 0) {
-        try {
-          const results = processIMUData(rawData, profile.weight);
-          setAnalysisResults(results);
-        } catch (error) {
-          console.error("Failed to process run data:", error);
-          toast({
-            title: "Analysis Error",
-            description: "Could not analyze the provided run data.",
-            variant: "destructive",
-          });
-        }
-      } else {
         setAnalysisResults(null);
       }
-      setIsLoading(false);
+    } else {
+      setAnalysisResults(null);
     }
+  }, [rawData, profile.weight, toast, isRunDataLoading]);
 
-    // Ensure this runs on the client where localStorage is available
-    if (typeof window !== "undefined") {
-      processAndAnalyze();
-    }
-  }, [toast, profile.weight]);
+  const isLoading = useMemo(() => isRunDataLoading || (rawData && !analysisResults), [isRunDataLoading, rawData, analysisResults]);
 
   return (
     <AppLayout>

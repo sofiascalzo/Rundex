@@ -1,7 +1,7 @@
 // src/app/coach/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/app-layout";
 import { useToast } from "@/hooks/use-toast";
 import type { RawRunDataEntry, StepMetrics } from "@/lib/types";
@@ -12,50 +12,49 @@ import { processIMUData } from "@/lib/imu-processor";
 import PerformancePrediction from "@/components/dashboard/performance-prediction";
 import { performancePredictions, PerformancePredictionsOutput } from "@/ai/flows/performance-predictions";
 import { Button } from "@/components/ui/button";
-
-const RUN_DATA_STORAGE_KEY = "rundex-run-data";
+import { useRunData } from "@/context/run-data-context";
 
 export default function CoachPage() {
   const { toast } = useToast();
   const { profile } = useUserProfile();
   const [prediction, setPrediction] = useState<PerformancePredictionsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { runData: rawData, isLoading: isRunDataLoading } = useRunData();
   const [hasRunData, setHasRunData] = useState(false);
 
+  useEffect(() => {
+    if (!isRunDataLoading) {
+      setHasRunData(!!(rawData && rawData.length > 0));
+    }
+  }, [rawData, isRunDataLoading]);
+
   async function getCoachingReport() {
+    if (!rawData || rawData.length === 0) {
+      toast({
+        title: "No Run Data",
+        description: "Please upload a run session on the Connect page first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     setPrediction(null); // Reset previous prediction
 
-    let rawData: RawRunDataEntry[] | null = null;
+    let results: StepMetrics[] | null = null;
     try {
-      const storedData = localStorage.getItem(RUN_DATA_STORAGE_KEY);
-      if (storedData) {
-        rawData = JSON.parse(storedData);
-      }
+      results = processIMUData(rawData, profile.weight);
     } catch (error) {
-      console.error("Failed to read run data from localStorage", error);
+      console.error("Failed to process run data for coach:", error);
       toast({
-        title: "Error",
-        description: "Could not read the saved run data.",
+        title: "Analysis Error",
+        description: "Could not analyze the run data.",
         variant: "destructive",
       });
       setIsLoading(false);
       return;
     }
     
-    let results: StepMetrics[] | null = null;
-    if (rawData && rawData.length > 0) {
-      setHasRunData(true);
-      try {
-        results = processIMUData(rawData, profile.weight);
-      } catch (error) {
-        console.error("Failed to process run data for coach:", error);
-        setHasRunData(false); // Mark as no valid data if processing fails
-      }
-    } else {
-      setHasRunData(false);
-    }
-
     if (results && results.length > 0) {
       try {
         const runAnalysisJson = JSON.stringify(results);
@@ -87,7 +86,7 @@ export default function CoachPage() {
             Get personalized feedback on your last run. The AI analyzes your step-by-step metrics to provide insights on your training type, performance, and technique.
         </p>
 
-        <Button onClick={getCoachingReport} disabled={isLoading}>
+        <Button onClick={getCoachingReport} disabled={isLoading || !hasRunData}>
             {isLoading ? (
                 <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -115,7 +114,9 @@ export default function CoachPage() {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Ready for Analysis</AlertTitle>
                     <AlertDescription>
-                        Upload a run session on the <a href="/connect" className="font-bold underline">Connect</a> page, then click "Generate AI Report" to get your personalized coaching.
+                        {hasRunData
+                          ? 'Click "Generate AI Report" to get your personalized coaching on your latest run.'
+                          : 'Upload a run session on the Connect page, then come back here to generate your personalized coaching report.'}
                     </AlertDescription>
                 </Alert>
             )
