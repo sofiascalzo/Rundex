@@ -5,16 +5,16 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet'
 import type { LatLngExpression } from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Map } from 'lucide-react';
-import type { RunData } from '@/lib/types';
+import type { RawRunDataEntry } from '@/lib/types';
 
 interface RunMapProps {
-  runData: RunData[];
+  runData: RawRunDataEntry[];
 }
 
 export default function RunMap({ runData }: RunMapProps) {
   const positions = runData
     .map(d => d.position)
-    .filter(p => p !== undefined) as { lat: number; lng: number }[];
+    .filter(p => p !== undefined && p.lat !== undefined && p.lng !== undefined) as { lat: number; lng: number }[];
 
   if (positions.length < 2) {
     return (
@@ -26,7 +26,7 @@ export default function RunMap({ runData }: RunMapProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">Not enough location data to display a map.</p>
+                <p className="text-muted-foreground">Not enough location data to display a map. The analysis pipeline generates a path from IMU data.</p>
             </CardContent>
         </Card>
     );

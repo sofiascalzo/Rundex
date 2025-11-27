@@ -10,13 +10,13 @@ import { FileUp, FileCheck, Loader2 } from "lucide-react";
 import type { RunData, ImuSample } from "@/lib/types";
 
 // Helper to parse CSV data into a structured format
-function parseImuCsv(csv: string): RunData[] {
+function parseImuCsv(csv: string): any[] {
   const lines = csv.split('\n').filter(line => line.trim() !== '');
   if (lines.length < 2) {
     throw new Error("CSV must have a header and at least one data row.");
   }
   const header = lines[0].split(',').map(h => h.trim());
-  const data: RunData[] = [];
+  const data: any[] = [];
 
   const timeIndex = header.indexOf('timestamp');
   const axIndex = header.indexOf('ax');
@@ -27,22 +27,34 @@ function parseImuCsv(csv: string): RunData[] {
   const gzIndex = header.indexOf('gz');
 
   if (timeIndex === -1 || axIndex === -1 || ayIndex === -1 || azIndex === -1 || gxIndex === -1 || gyIndex === -1 || gzIndex === -1) {
+    // Try to find header for bluetooth saved session
+    const btTimeIndex = header.indexOf('timestamp');
+    const btTypeIndex = header.indexOf('type');
+    const btDataIndex = header.indexOf('data');
+
+    if (btTimeIndex !== -1 && btTypeIndex !== -1 && btDataIndex !== -1) {
+        // This is likely a Rundex session file, which is already JSON-like.
+        // We will treat it as a JSON file. The user probably named it .csv by mistake.
+        throw new Error("This looks like a Rundex session file. Please upload it as a .json file.");
+    }
     throw new Error("CSV header must contain 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz'.");
   }
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => parseFloat(v));
-    const timestamp = new Date(values[timeIndex]).toISOString();
+    const values = lines[i].split(',');
+    const timestamp = new Date(parseFloat(values[timeIndex])).toISOString();
 
-    const sample: RunData = {
+    const sample = {
       timestamp,
-      accel: { x: values[axIndex], y: values[ayIndex], z: values[azIndex] },
-      gyro: { x: values[gxIndex], y: values[gyIndex], z: values[gzIndex] },
-      // Mock other values for now, to be calculated later
-      speed: 0,
-      stride_length: 0,
-      step_count: i,
-      posture_error: 0,
+      type: 'imu',
+      data: {
+        ax: parseFloat(values[axIndex]),
+        ay: parseFloat(values[ayIndex]),
+        az: parseFloat(values[azIndex]),
+        gx: parseFloat(values[gxIndex]),
+        gy: parseFloat(values[gyIndex]),
+        gz: parseFloat(values[gzIndex]),
+      }
     };
     data.push(sample);
   }
@@ -96,7 +108,7 @@ export default function FileUpload() {
             throw new Error("Failed to read file content.");
         }
 
-        let data: RunData[];
+        let data: any[];
         if (file.name.endsWith(".csv")) {
           data = parseImuCsv(text);
         } else {
@@ -104,19 +116,19 @@ export default function FileUpload() {
         }
 
         // Basic validation
-        if (!Array.isArray(data) || data.length === 0 || !data[0].timestamp) {
-            throw new Error("Invalid or empty data. Make sure it's an array of run data points with timestamps.");
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error("Invalid or empty data. Make sure it's an array of run data points.");
         }
 
         sessionStorage.setItem("uploadedRunData", JSON.stringify(data));
         
         toast({
           title: "Upload Successful",
-          description: `"${file.name}" has been processed.`,
+          description: `"${file.name}" has been processed. Navigating to results...`,
         });
         
-        // Redirect to dashboard
-        router.push("/dashboard");
+        // Redirect to results page
+        router.push("/results");
 
       } catch (error: any) {
         toast({
@@ -163,7 +175,7 @@ export default function FileUpload() {
           ) : (
             <>
               <FileUp className="mr-2 h-4 w-4" />
-              Upload and Visualize
+              Upload and Analyze
             </>
           )}
         </Button>

@@ -19,6 +19,23 @@ export interface RunData {
   position?: { lat: number; lng: number; };
 }
 
+// Type for raw data coming from BLE or file upload
+export interface RawRunDataEntry {
+    timestamp: string;
+    type: 'imu' | 'counter' | string;
+    data: {
+      ax?: number;
+      ay?: number;
+      az?: number;
+      gx?: number;
+      gy?: number;
+      gz?: number;
+      count?: number;
+    };
+    position?: { lat: number; lng: number };
+}
+
+
 export interface UserProfile {
   nickname: string;
   avatarUrl: string;
@@ -55,4 +72,5 @@ export interface GaitAnalysisResult {
   pos: { x: number; y: number; z: number; }[];
   vel: { vx: number; vy: number; vz: number; }[];
   quats: number[][];
+  dataWithPositions?: RawRunDataEntry[];
 }

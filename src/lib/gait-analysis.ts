@@ -2,55 +2,96 @@
 import * as quat from "gl-matrix/quat";
 import * as vec3 from "gl-matrix/vec3";
 import * as mat3 from "gl-matrix/mat3";
-import type { ImuSample, GaitAnalysisResult, StepMetric, UserProfile } from './types';
+import type { ImuSample, GaitAnalysisResult, StepMetric, UserProfile, RawRunDataEntry } from './types';
 
 type Params = { samplingHz: number; mass: number; thresholdFs?: number; TminMs?: number; };
 
-// Helper to convert raw RunData to ImuSample format for processing
-function prepareSamples(runData: any[]): { samples: ImuSample[], samplingHz: number } {
-  // Sort by timestamp just in case
-  const sortedData = [...runData].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  
-  if (sortedData.length < 2) {
-    return { samples: [], samplingHz: 0 };
+/**
+ * normalizeRunData: takes the parsed JSON array (sortedData) and returns ImuSample[]
+ * - filters only elements type==='imu'
+ * - handles ISO / ms / s timestamps
+ * - converts accel: g -> m/s^2 (multiplies if detected in g)
+ * - converts gyro: deg/s -> rad/s (if detected in deg/s)
+ */
+function normalizeRunData(sortedData: RawRunDataEntry[]): ImuSample[] {
+  if (!Array.isArray(sortedData)) {
+      console.error("Input to normalizeRunData is not an array");
+      return [];
   }
 
-  const startTime = new Date(sortedData[0].timestamp).getTime();
-  const endTime = new Date(sortedData[sortedData.length - 1].timestamp).getTime();
-  const duration = (endTime - startTime) / 1000;
-  const samplingHz = Math.round(sortedData.length / duration);
+  const imuRaw = sortedData.filter(e => e && e.type === "imu" && e.data);
 
-  const GRAVITY = 9.80665;
-  const DEG_TO_RAD = Math.PI / 180;
+  const toSeconds = (ts: any): number => {
+    if (typeof ts === "number") {
+      if (ts > 1e12) return ts / 1e9;
+      if (ts > 1e9)  return ts / 1000;
+      return ts;
+    }
+    const n = Date.parse(String(ts));
+    if (!isNaN(n)) return n / 1000;
+    return 0;
+  };
 
-  const samples: ImuSample[] = sortedData.map(d => {
-    // Basic unit detection (very naive)
-    const isG = Math.abs(d.accel.z) < 5; // if z is around 1, it's likely in g's
-    const isDeg = Math.abs(d.gyro.x) > 10; // if values are large, likely deg/s
-
+  const prelim = imuRaw.map((e) => {
+    const d = e.data ?? {};
     return {
-      t: (new Date(d.timestamp).getTime() - startTime) / 1000,
-      ax: isG ? d.accel.x * GRAVITY : d.accel.x,
-      ay: isG ? d.accel.y * GRAVITY : d.accel.y,
-      az: isG ? d.accel.z * GRAVITY : d.accel.z,
-      wx: isDeg ? d.gyro.x * DEG_TO_RAD : d.gyro.x,
-      wy: isDeg ? d.gyro.y * DEG_TO_RAD : d.gyro.y,
-      wz: isDeg ? d.gyro.z * DEG_TO_RAD : d.gyro.z,
+      t: toSeconds(e.timestamp ?? (d as any).timestamp ?? null),
+      ax: Number(d.ax ?? 0),
+      ay: Number(d.ay ?? 0),
+      az: Number(d.az ?? 0),
+      gx: Number(d.gx ?? 0),
+      gy: Number(d.gy ?? 0),
+      gz: Number(d.gz ?? 0),
     };
-  });
+  }).filter(p => p.t > 0);
 
-  return { samples, samplingHz };
+  if (prelim.length === 0) return [];
+
+  const magAccAvg = prelim.reduce((s,p)=> s + Math.sqrt(p.ax*p.ax + p.ay*p.ay + p.az*p.az), 0) / prelim.length;
+  const gyroAvg = prelim.reduce((s,p)=> s + (Math.abs(p.gx) + Math.abs(p.gy) + Math.abs(p.gz)), 0) / (prelim.length * 3);
+
+  const accelInG = magAccAvg > 0.3 && magAccAvg < 5; // Heuristic for g
+  const gyroInDeg = gyroAvg > 1; // Heuristic for deg/s
+
+  const G = 9.80665;
+  const DEG2RAD = Math.PI / 180;
+
+  const samples: ImuSample[] = prelim.map(p => ({
+    t: p.t,
+    ax: accelInG ? p.ax * G : p.ax,
+    ay: accelInG ? p.ay * G : p.ay,
+    az: accelInG ? p.az * G : p.az,
+    wx: gyroInDeg ? p.gx * DEG2RAD : p.gx,
+    wy: gyroInDeg ? p.gy * DEG2RAD : p.gy,
+    wz: gyroInDeg ? p.gz * DEG2RAD : p.gz,
+  }));
+
+  samples.sort((a,b) => a.t - b.t);
+
+  return samples;
 }
 
-export function analyzeRunData(runData: any[], userProfile: UserProfile): GaitAnalysisResult | null {
-  if (!runData || runData.length < 10) return null;
-  
-  const { samples, samplingHz } = prepareSamples(runData);
 
-  if (samples.length === 0) return null;
+// Helper to get sampling frequency from normalized samples
+function getSamplingHz(samples: ImuSample[]): number {
+    if (samples.length < 2) return 100; // Default fallback
+
+    const duration = samples[samples.length - 1].t - samples[0].t;
+    if (duration <= 0) return 100;
+
+    return Math.round(samples.length / duration);
+}
+
+export function analyzeRunData(runData: RawRunDataEntry[], userProfile: UserProfile): GaitAnalysisResult | null {
+  if (!runData || runData.length < 10) return null;
+
+  const sortedData = [...runData].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const samples = normalizeRunData(sortedData);
+
+  if (samples.length < 10) return null;
 
   const params: Params = {
-    samplingHz: samplingHz > 0 ? samplingHz : 100, // Fallback Hz
+    samplingHz: getSamplingHz(samples),
     mass: userProfile.weight || 75
   };
 
@@ -153,7 +194,7 @@ export function analyzeRunData(runData: any[], userProfile: UserProfile): GaitAn
         break;
       }
     }
-    if (!found) toIdxs.push(start + 5); // Fallback
+    if (!found && start + 5 < a_dyn.length) toIdxs.push(start + 5); // Fallback
   }
 
   // 6) ZUPT & integrate velocity/position per stride
@@ -180,7 +221,7 @@ export function analyzeRunData(runData: any[], userProfile: UserProfile): GaitAn
     }
 
     // Re-integrate for position
-    pos[i0] = {x: pos[i0-1]?.x || 0, y: pos[i0-1]?.y || 0, z: pos[i0-1]?.z || 0}
+    pos[i0] = {x: pos[i0 > 0 ? i0-1 : 0]?.x || 0, y: pos[i0 > 0 ? i0-1 : 0]?.y || 0, z: pos[i0 > 0 ? i0-1 : 0]?.z || 0}
     for (let i=i0+1; i<=i1; i++){
         const dt = (a_dyn[i].t - a_dyn[i-1].t) || (1/ params.samplingHz);
         pos[i].x = pos[i-1].x + 0.5*(vel[i-1].vx + vel[i].vx)*dt;
@@ -193,8 +234,12 @@ export function analyzeRunData(runData: any[], userProfile: UserProfile): GaitAn
   const steps:StepMetric[] = [];
   for (let k=0; k<fsIdxs.length-1; k++){
     const iFS = fsIdxs[k], iFSnext = fsIdxs[k+1];
+    if (iFS >= a_dyn.length || iFSnext >= a_dyn.length) continue;
+
     const iTO = toIdxs[k] ?? Math.floor((iFS + iFSnext)/2);
-    const tFS = a_dyn[iFS].t, tTO = a_dyn[iTO]?.t ?? tFS + 0.1, tFS2 = a_dyn[iFSnext].t;
+    if (iTO >= a_dyn.length) continue;
+
+    const tFS = a_dyn[iFS].t, tTO = a_dyn[iTO].t, tFS2 = a_dyn[iFSnext].t;
     const CT = Math.max(0, tTO - tFS);
     const FT = Math.max(0, tFS2 - tTO);
     const Tstep = Math.max(0.01, tFS2 - tFS);
@@ -214,12 +259,35 @@ export function analyzeRunData(runData: any[], userProfile: UserProfile): GaitAn
 
   // 8) summary
   const totalDistance = steps.reduce((s,st)=>s+st.L,0);
-  const totalDuration = (a_dyn[a_dyn.length-1].t - a_dyn[0].t) || 1;
+  const totalDuration = (a_dyn.length > 0) ? (a_dyn[a_dyn.length-1].t - a_dyn[0].t) || 1 : 1;
   const summary = {
     nSteps: steps.length,
     totalDistance: totalDistance,
     avgSpeed: totalDistance / totalDuration,
   };
 
-  return { steps, summary, a_dyn, pos, vel, quats };
+  // Add GPS-like positions back to the original runData
+  const originLat = 45.4642;
+  const originLng = 9.1900;
+  const metersPerDegree = 111320;
+
+  const dataWithPositions = runData.map(entry => {
+    if(entry.type === 'imu') {
+      const sampleIndex = samples.findIndex(s => s.t === toSeconds(entry.timestamp));
+      if(sampleIndex !== -1 && sampleIndex < pos.length) {
+        const p = pos[sampleIndex];
+        return {
+          ...entry,
+          position: {
+            lat: originLat + p.y / metersPerDegree,
+            lng: originLng + p.x / (metersPerDegree * Math.cos(originLat * Math.PI / 180)),
+          }
+        }
+      }
+    }
+    return entry;
+  });
+
+
+  return { steps, summary, a_dyn, pos, vel, quats, dataWithPositions };
 }

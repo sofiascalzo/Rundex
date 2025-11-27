@@ -8,7 +8,7 @@ import AppLayout from "@/components/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { analyzeRunData } from "@/lib/gait-analysis";
-import type { GaitAnalysisResult, StepMetric } from "@/lib/types";
+import type { GaitAnalysisResult, StepMetric, RawRunDataEntry } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "lucide-react";
 import { mockRunData } from "@/lib/mock-data";
@@ -23,7 +23,7 @@ const RunMap = dynamic(() => import('@/components/results/run-map'), {
 
 export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<GaitAnalysisResult | null>(null);
-  const [runData, setRunData] = useState<any[]>([]); // Keep original data for map
+  const [runDataForMap, setRunDataForMap] = useState<RawRunDataEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { profile } = useUserProfile();
 
@@ -31,7 +31,7 @@ export default function ResultsPage() {
     setIsLoading(true);
     const uploadedDataString = sessionStorage.getItem("uploadedRunData");
     
-    let dataToAnalyze: any[] = [];
+    let dataToAnalyze: RawRunDataEntry[] = [];
     if (uploadedDataString) {
       try {
         const parsedData = JSON.parse(uploadedDataString);
@@ -43,16 +43,20 @@ export default function ResultsPage() {
       }
     }
 
-    if (dataToAnalyze.length === 0) {
-        dataToAnalyze = mockRunData;
-    }
+    // if (dataToAnalyze.length === 0) {
+    //     dataToAnalyze = mockRunData;
+    // }
     
-    setRunData(dataToAnalyze);
-
+    // Simulate async analysis
     setTimeout(() => {
       if(dataToAnalyze.length > 0) {
         const analysisResults = analyzeRunData(dataToAnalyze, profile);
         setAnalysis(analysisResults);
+        if (analysisResults?.dataWithPositions) {
+            setRunDataForMap(analysisResults.dataWithPositions);
+        } else {
+            setRunDataForMap(dataToAnalyze); // Fallback
+        }
       }
       setIsLoading(false);
     }, 500);
@@ -77,7 +81,7 @@ export default function ResultsPage() {
             <Info className="h-8 w-8 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold">No Data to Analyze</h2>
             <p className="text-muted-foreground max-w-md mt-2">
-              Could not analyze run data. The file might be empty or in an unsupported format. Please go to the "Connect" page to upload a valid session file.
+              Could not analyze run data. The file might be empty, in an unsupported format, or contain too few data points. Please go to the "Connect" page to upload a valid session file.
             </p>
         </div>
       </AppLayout>
@@ -95,7 +99,7 @@ export default function ResultsPage() {
             <StatCard title="Average Speed" value={`${analysis.summary.avgSpeed.toFixed(2)} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across the session" />
         </div>
 
-        <RunMap runData={runData} />
+        <RunMap runData={runDataForMap} />
 
          <Card>
             <CardHeader>
