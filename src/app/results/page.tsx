@@ -11,9 +11,9 @@ import { analyzeRunData } from "@/lib/gait-analysis";
 import type { GaitAnalysisResult, StepMetric, RawRunDataEntry } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "lucide-react";
-import { mockRunData } from "@/lib/mock-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import StatCard from "@/components/dashboard/stat-card";
+import Link from "next/link";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const RunMap = dynamic(() => import('@/components/results/run-map'), {
@@ -42,10 +42,6 @@ export default function ResultsPage() {
         console.error("Failed to parse run data from session storage:", error);
       }
     }
-
-    // if (dataToAnalyze.length === 0) {
-    //     dataToAnalyze = mockRunData;
-    // }
     
     // Simulate async analysis
     setTimeout(() => {
@@ -81,7 +77,7 @@ export default function ResultsPage() {
             <Info className="h-8 w-8 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold">No Data to Analyze</h2>
             <p className="text-muted-foreground max-w-md mt-2">
-              Could not analyze run data. The file might be empty, in an unsupported format, or contain too few data points. Please go to the "Connect" page to upload a valid session file.
+              Could not find session data. Please go to the <Link href="/connect" className="text-primary underline">Connect</Link> page to upload a valid session file.
             </p>
         </div>
       </AppLayout>
@@ -112,35 +108,37 @@ export default function ResultsPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Step</TableHead>
-                            <TableHead>CT (s)</TableHead>
-                            <TableHead>FT (s)</TableHead>
-                            <TableHead>Length (m)</TableHead>
-                            <TableHead>Speed (m/s)</TableHead>
-                            <TableHead>Peak Force (N)</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {analysis.steps.map((step) => (
-                             <TableRow key={step.i}>
-                                <TableCell className="font-medium">{step.i + 1}</TableCell>
-                                <TableCell>{step.CT.toFixed(3)}</TableCell>
-                                <TableCell>{step.FT.toFixed(3)}</TableCell>
-                                <TableCell>{step.L.toFixed(2)}</TableCell>
-                                <TableCell>{step.vmean.toFixed(2)}</TableCell>
-                                <TableCell>{step.Fpeak.toFixed(0)}</TableCell>
-                            </TableRow>
-                        ))}
-                        {analysis.steps.length === 0 && (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center text-muted-foreground">No steps detected.</TableCell>
+                                <TableHead>Step</TableHead>
+                                <TableHead>CT (s)</TableHead>
+                                <TableHead>FT (s)</TableHead>
+                                <TableHead>Length (m)</TableHead>
+                                <TableHead>Speed (m/s)</TableHead>
+                                <TableHead>Peak Force (N)</TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {analysis.steps.map((step) => (
+                                <TableRow key={step.i}>
+                                    <TableCell className="font-medium">{step.i + 1}</TableCell>
+                                    <TableCell>{step.CT.toFixed(3)}</TableCell>
+                                    <TableCell>{step.FT.toFixed(3)}</TableCell>
+                                    <TableCell>{step.L.toFixed(2)}</TableCell>
+                                    <TableCell>{step.vmean.toFixed(2)}</TableCell>
+                                    <TableCell>{step.Fpeak.toFixed(0)}</TableCell>
+                                </TableRow>
+                            ))}
+                            {analysis.steps.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground">No steps detected.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
       </div>
