@@ -124,11 +124,11 @@ export default function FileUpload() {
         
         toast({
           title: "Upload Successful",
-          description: `"${file.name}" has been processed. Navigating to results...`,
+          description: `"${file.name}" has been processed. Navigating to dashboard...`,
         });
         
-        // Redirect to results page
-        router.push("/results");
+        // Redirect to dashboard page
+        router.push("/dashboard");
 
       } catch (error: any) {
         toast({

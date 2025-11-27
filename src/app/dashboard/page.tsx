@@ -11,7 +11,6 @@ import type { RunData } from "@/lib/types";
 
 export default function DashboardPage() {
   // The dashboard will now consistently show mock data as a general overview.
-  // The detailed analysis of uploaded data is moved to the "Results" page.
   const runData: RunData[] = defaultMockRunData;
 
   const latestData = runData[runData.length - 1];
@@ -24,7 +23,7 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="space-y-8">
         <h1 className="text-3xl font-bold font-headline tracking-wide">Dashboard Overview</h1>
-        <p className="text-muted-foreground">This is a general overview using sample data. For detailed analysis of your session, please go to the <a href="/results" className="text-primary underline">Results</a> page.</p>
+        <p className="text-muted-foreground">This is a general overview using sample data. For detailed analysis of your session, please upload your data on the <a href="/connect" className="text-primary underline">Connect</a> page.</p>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Average Speed" value={`${avgSpeed} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across your session" />
           <StatCard title="Total Steps" value={totalSteps.toString()} icon={<Footprints className="h-5 w-5 text-muted-foreground" />} description="From session data" />

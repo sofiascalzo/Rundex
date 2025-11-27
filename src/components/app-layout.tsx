@@ -54,16 +54,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <span>Connect</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => router.push("/results")}
-                isActive={pathname === "/results"}
-                tooltip="Results"
-              >
-                <BarChart3 />
-                <span>Results</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => router.push("/coach")}
