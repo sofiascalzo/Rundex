@@ -15,11 +15,24 @@ import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "l
 import { Skeleton } from "@/components/ui/skeleton";
 import StatCard from "@/components/dashboard/stat-card";
 import Link from "next/link";
+import { Map } from "lucide-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const RunMap = dynamic(() => import('@/components/results/run-map'), {
   ssr: false,
-  loading: () => <Skeleton className="h-[400px] w-full" />,
+  loading: () => (
+      <Card>
+          <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                  <Map className="text-primary"/>
+                  Run Path
+              </CardTitle>
+          </CardHeader>
+          <CardContent>
+              <Skeleton className="h-[400px] w-full" />
+          </CardContent>
+      </Card>
+  ),
 });
 
 export default function ResultsPage() {
@@ -109,13 +122,29 @@ export default function ResultsPage() {
             <StatCard title="Average Speed" value={`${analysis.summary.avgSpeed.toFixed(2)} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across the session" />
         </div>
 
-        <RunMap 
-            runId={runId}
-            center={center}
-            path={path}
-            startPoint={startPoint}
-            endPoint={endPoint}
-        />
+        {center ? (
+            <RunMap 
+                runId={runId}
+                center={center as [number, number]}
+                path={path as [number, number][]}
+                startPoint={startPoint as [number, number]}
+                endPoint={endPoint as [number, number]}
+            />
+        ) : (
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Map className="text-primary"/>
+                        Run Path
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-[400px] flex items-center justify-center bg-muted rounded-md">
+                        <p className="text-muted-foreground">Not enough location data to display a map.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
 
          <Card>
             <CardHeader>
