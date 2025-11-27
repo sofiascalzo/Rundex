@@ -47,12 +47,18 @@ export interface UserProfile {
 
 export interface StepMetrics {
   index: number;
+  tFS: number;
+  tTO: number;
   CT: number;       // Contact Time (s)
   FT: number;       // Flight Time (s)
   Tstep: number;    // Step Duration (s)
+  cadenceHz: number;
   cadencePmin: number; // Cadence (steps/min)
   Li: number;       // Step Length (m)
   vi: number;       // Step Speed (m/s)
   pitchDeg: number; // Pitch angle at foot strike (degrees)
   rollDeg: number;  // Roll angle at foot strike (degrees)
+  apeak: number;
+  Fpeak: number;
+  cumulDist: number;
 }

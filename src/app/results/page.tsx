@@ -33,7 +33,7 @@ export default function ResultsPage() {
 
     if (rawData && rawData.length > 0) {
       try {
-        const results = processIMUData(rawData, profile.weight);
+        const results = processIMUData(rawData);
         setAnalysisResults(results);
       } catch (error: any) {
         console.error("Failed to process run data:", error);
@@ -49,7 +49,7 @@ export default function ResultsPage() {
     }
   }, [rawData, profile.weight, toast, isRunDataLoading]);
 
-  const isLoading = useMemo(() => isRunDataLoading || (rawData && !analysisResults), [isRunDataLoading, rawData, analysisResults]);
+  const isLoading = useMemo(() => isRunDataLoading || (rawData && rawData.length > 0 && !analysisResults), [isRunDataLoading, rawData, analysisResults]);
 
   return (
     <AppLayout>
@@ -95,12 +95,12 @@ export default function ResultsPage() {
                       <TableHead className="w-[80px]">Step</TableHead>
                       <TableHead>Contact (s)</TableHead>
                       <TableHead>Flight (s)</TableHead>
-                      <TableHead>Duration (s)</TableHead>
                       <TableHead>Cadence (spm)</TableHead>
                       <TableHead>Length (m)</TableHead>
                       <TableHead>Speed (m/s)</TableHead>
                       <TableHead>Pitch (°)</TableHead>
                       <TableHead>Roll (°)</TableHead>
+                      <TableHead>Peak Force (N)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -109,12 +109,12 @@ export default function ResultsPage() {
                         <TableCell className="font-medium">{step.index}</TableCell>
                         <TableCell>{step.CT.toFixed(3)}</TableCell>
                         <TableCell>{step.FT.toFixed(3)}</TableCell>
-                        <TableCell>{step.Tstep.toFixed(3)}</TableCell>
                         <TableCell>{step.cadencePmin.toFixed(1)}</TableCell>
                         <TableCell>{step.Li.toFixed(2)}</TableCell>
                         <TableCell>{step.vi.toFixed(2)}</TableCell>
                         <TableCell>{step.pitchDeg.toFixed(1)}</TableCell>
                         <TableCell>{step.rollDeg.toFixed(1)}</TableCell>
+                        <TableCell>{step.Fpeak.toFixed(0)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
