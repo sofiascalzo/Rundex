@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { RunDataProvider } from '@/context/run-data-context';
 
 export const metadata: Metadata = {
   title: 'Rundex – Run fearless.',
@@ -27,7 +28,9 @@ export default function RootLayout({
           crossOrigin=""/>
       </head>
       <body className="font-body antialiased bg-background text-foreground">
-        {children}
+        <RunDataProvider>
+          {children}
+        </RunDataProvider>
         <Toaster />
       </body>
     </html>

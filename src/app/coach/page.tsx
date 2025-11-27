@@ -11,10 +11,12 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { processIMUData } from "@/lib/imu-processor";
 import PerformancePrediction from "@/components/dashboard/performance-prediction";
 import { performancePredictions, PerformancePredictionsOutput } from "@/ai/flows/performance-predictions";
+import { useRunData } from "@/context/run-data-context";
 
 export default function CoachPage() {
   const { toast } = useToast();
   const { profile } = useUserProfile();
+  const { runData } = useRunData();
   const [prediction, setPrediction] = useState<PerformancePredictionsOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasRunData, setHasRunData] = useState(false);
@@ -23,21 +25,16 @@ export default function CoachPage() {
     async function getCoachingReport() {
       setIsLoading(true);
       let results: StepMetrics[] | null = null;
-      try {
-        const storedData = sessionStorage.getItem("uploadedRunData");
-        if (storedData) {
-          const runData: RawRunDataEntry[] = JSON.parse(storedData);
-          if (runData && runData.length > 0) {
-              setHasRunData(true);
-              results = processIMUData(runData, profile.weight);
-          } else {
-              setHasRunData(false);
-          }
-        } else {
-            setHasRunData(false);
+      
+      if (runData && runData.length > 0) {
+        setHasRunData(true);
+        try {
+          results = processIMUData(runData, profile.weight);
+        } catch (error) {
+          console.error("Failed to process run data for coach:", error);
+          setHasRunData(false);
         }
-      } catch (error) {
-        console.error("Failed to process run data for coach:", error);
+      } else {
         setHasRunData(false);
       }
 
@@ -62,7 +59,7 @@ export default function CoachPage() {
     }
 
     getCoachingReport();
-  }, [toast, profile.weight]);
+  }, [toast, profile.weight, runData]);
 
   return (
     <AppLayout>

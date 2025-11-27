@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FileUp, FileCheck, Loader2 } from "lucide-react";
-import type { RunData, ImuSample } from "@/lib/types";
+import type { RawRunDataEntry } from "@/lib/types";
+import { useRunData } from "@/context/run-data-context";
 
 // Helper to parse CSV data into a structured format
 function parseImuCsv(csv: string): any[] {
@@ -67,6 +68,7 @@ export default function FileUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { setRunData } = useRunData();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -108,7 +110,7 @@ export default function FileUpload() {
             throw new Error("Failed to read file content.");
         }
 
-        let data: any[];
+        let data: RawRunDataEntry[];
         if (file.name.endsWith(".csv")) {
           data = parseImuCsv(text);
         } else {
@@ -120,7 +122,7 @@ export default function FileUpload() {
             throw new Error("Invalid or empty data. Make sure it's an array of run data points.");
         }
 
-        sessionStorage.setItem("uploadedRunData", JSON.stringify(data));
+        setRunData(data);
         
         toast({
           title: "Upload Successful",

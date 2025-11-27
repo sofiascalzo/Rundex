@@ -1,7 +1,7 @@
 // src/app/results/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/app-layout";
 import { useToast } from "@/hooks/use-toast";
 import type { RawRunDataEntry, StepMetrics } from "@/lib/types";
@@ -20,45 +20,38 @@ import { Info } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { processIMUData } from "@/lib/imu-processor";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRunData } from "@/context/run-data-context";
 
 export default function ResultsPage() {
   const { toast } = useToast();
   const { profile } = useUserProfile();
+  const { runData } = useRunData();
   const [analysisResults, setAnalysisResults] = useState<StepMetrics[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function processAndAnalyze() {
+    function processAndAnalyze() {
       setIsLoading(true);
-      try {
-        const storedData = sessionStorage.getItem("uploadedRunData");
-        if (storedData) {
-          const runData: RawRunDataEntry[] = JSON.parse(storedData);
-          if (runData && runData.length > 0) {
-              const results = processIMUData(runData, profile.weight);
-              setAnalysisResults(results);
-          } else {
-              toast({
-                  title: "No Data",
-                  description: "No run data found to analyze.",
-                  variant: "destructive",
-              });
-          }
+      if (runData && runData.length > 0) {
+        try {
+          const results = processIMUData(runData, profile.weight);
+          setAnalysisResults(results);
+        } catch (error) {
+          console.error("Failed to process run data:", error);
+          toast({
+            title: "Analysis Error",
+            description: "Could not analyze the provided run data.",
+            variant: "destructive",
+          });
         }
-      } catch (error) {
-        console.error("Failed to process run data:", error);
-        toast({
-          title: "Analysis Error",
-          description: "Could not analyze the provided run data.",
-          variant: "destructive",
-        });
-      } finally {
-          setIsLoading(false);
+      } else {
+        setAnalysisResults(null);
       }
+      setIsLoading(false);
     }
 
     processAndAnalyze();
-  }, [toast, profile.weight]);
+  }, [runData, toast, profile.weight]);
 
   return (
     <AppLayout>
@@ -82,7 +75,7 @@ export default function ResultsPage() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>No Results</AlertTitle>
                 <AlertDescription>
-                    We couldn't generate any step metrics from the provided data. Please try uploading a different session file on the <a href="/connect" className="font-bold underline">Connect</a> page.
+                    We couldn't generate any step metrics from the provided data. Please upload a session file on the <a href="/connect" className="font-bold underline">Connect</a> page.
                 </AlertDescription>
             </Alert>
         )}
