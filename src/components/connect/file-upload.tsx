@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { FileUp, FileCheck, Loader2 } from "lucide-react";
 import type { RawRunDataEntry } from "@/lib/types";
-import { useRunData } from "@/context/run-data-context";
+
+const RUN_DATA_STORAGE_KEY = "rundex-run-data";
 
 // Helper to parse CSV data into a structured format
 function parseImuCsv(csv: string): any[] {
@@ -68,7 +69,6 @@ export default function FileUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const { setRunData } = useRunData();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -122,11 +122,12 @@ export default function FileUpload() {
             throw new Error("Invalid or empty data. Make sure it's an array of run data points.");
         }
 
-        setRunData(data);
+        // Save to localStorage
+        localStorage.setItem(RUN_DATA_STORAGE_KEY, JSON.stringify(data));
         
         toast({
           title: "Upload Successful",
-          description: `"${file.name}" has been processed. Navigating to results...`,
+          description: `"${file.name}" has been saved. Navigating to results...`,
         });
         
         // Redirect to results page

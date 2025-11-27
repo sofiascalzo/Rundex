@@ -1,7 +1,7 @@
 // src/app/results/page.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/app-layout";
 import { useToast } from "@/hooks/use-toast";
 import type { RawRunDataEntry, StepMetrics } from "@/lib/types";
@@ -20,21 +20,38 @@ import { Info } from "lucide-react";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { processIMUData } from "@/lib/imu-processor";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRunData } from "@/context/run-data-context";
+
+const RUN_DATA_STORAGE_KEY = "rundex-run-data";
 
 export default function ResultsPage() {
   const { toast } = useToast();
   const { profile } = useUserProfile();
-  const { runData } = useRunData();
   const [analysisResults, setAnalysisResults] = useState<StepMetrics[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     function processAndAnalyze() {
       setIsLoading(true);
-      if (runData && runData.length > 0) {
+      let rawData: RawRunDataEntry[] | null = null;
+      try {
+        const storedData = localStorage.getItem(RUN_DATA_STORAGE_KEY);
+        if (storedData) {
+          rawData = JSON.parse(storedData);
+        }
+      } catch (error) {
+        console.error("Failed to parse run data from localStorage:", error);
+        toast({
+          title: "Error Reading Data",
+          description: "Could not read the saved run data from your browser.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (rawData && rawData.length > 0) {
         try {
-          const results = processIMUData(runData, profile.weight);
+          const results = processIMUData(rawData, profile.weight);
           setAnalysisResults(results);
         } catch (error) {
           console.error("Failed to process run data:", error);
@@ -50,8 +67,11 @@ export default function ResultsPage() {
       setIsLoading(false);
     }
 
-    processAndAnalyze();
-  }, [runData, toast, profile.weight]);
+    // Ensure this runs on the client where localStorage is available
+    if (typeof window !== "undefined") {
+      processAndAnalyze();
+    }
+  }, [toast, profile.weight]);
 
   return (
     <AppLayout>
@@ -75,7 +95,7 @@ export default function ResultsPage() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>No Results</AlertTitle>
                 <AlertDescription>
-                    We couldn't generate any step metrics from the provided data. Please upload a session file on the <a href="/connect" className="font-bold underline">Connect</a> page.
+                    We couldn't find any session data. Please upload a run file on the <a href="/connect" className="font-bold underline">Connect</a> page.
                 </AlertDescription>
             </Alert>
         )}
