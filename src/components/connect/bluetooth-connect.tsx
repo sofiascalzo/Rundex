@@ -9,6 +9,8 @@ import { Bluetooth, BluetoothConnected, Lightbulb, LightbulbOff, Activity, Bot, 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from 'date-fns';
+import { useRunData } from "@/context/run-data-context";
+import type { RawRunDataEntry } from "@/lib/types";
 
 // UUIDs from the Arduino sketch
 const SERVICE_UUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
@@ -28,12 +30,6 @@ interface ImuData {
   gx: number;
   gy: number;
   gz: number;
-}
-
-interface SessionDataPoint {
-  timestamp: string;
-  type: 'imu' | 'counter';
-  data: ImuData | { count: number };
 }
 
 const AxisBar = ({ value, label }: { value: number, label: string }) => {
@@ -91,10 +87,11 @@ export default function BluetoothConnect() {
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const { toast } = useToast();
+  const { setRunData } = useRunData();
 
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const ledCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const sessionDataRef = useRef<SessionDataPoint[]>([]);
+  const sessionDataRef = useRef<RawRunDataEntry[]>([]);
 
   const [ledState, setLedState] = useState<boolean | null>(null);
   const [counter, setCounter] = useState<number | null>(null);
@@ -111,6 +108,11 @@ export default function BluetoothConnect() {
       return;
     }
 
+    // Save to global context
+    setRunData(sessionDataRef.current);
+    addLog(`Session data with ${sessionDataRef.current.length} points saved to the app.`);
+
+    // Also download a backup file
     const dataStr = JSON.stringify(sessionDataRef.current, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -122,10 +124,10 @@ export default function BluetoothConnect() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    addLog(`Session data saved to ${a.download}`);
+    addLog(`Backup session data saved to ${a.download}`);
     toast({
         title: "Session Saved",
-        description: `Data saved to ${a.download}`,
+        description: `Data saved to app and a backup file was downloaded.`,
         action: <Download className="h-5 w-5" />
     });
   };
@@ -147,7 +149,7 @@ export default function BluetoothConnect() {
     resetState();
     toast({
         title: "Device Disconnected",
-        description: "The Bluetooth device has been disconnected.",
+        description: "The Bluetooth device has been disconnected and session data was saved.",
     });
   }
   
@@ -174,15 +176,16 @@ export default function BluetoothConnect() {
       data: data
     });
 
-    addLog(
-        'IMU: ' +
-        'ax=' + data.ax.toFixed(3) + ' ' +
-        'ay=' + data.ay.toFixed(3) + ' ' +
-        'az=' + data.az.toFixed(3) + ' | ' +
-        'gx=' + data.gx.toFixed(3) + ' ' +
-        'gy=' + data.gy.toFixed(3) + ' ' +
-        'gz=' + data.gz.toFixed(3)
-    );
+    // Reduce log spam
+    // addLog(
+    //     'IMU: ' +
+    //     'ax=' + data.ax.toFixed(3) + ' ' +
+    //     'ay=' + data.ay.toFixed(3) + ' ' +
+    //     'az=' + data.az.toFixed(3) + ' | ' +
+    //     'gx=' + data.gx.toFixed(3) + ' ' +
+    //     'gy=' + data.gy.toFixed(3) + ' ' +
+    //     'gz=' + data.gz.toFixed(3)
+    // );
   }
 
   const handleCounterNotification = (event: Event) => {
@@ -403,5 +406,7 @@ export default function BluetoothConnect() {
     </Card>
   );
 }
+
+    
 
     
