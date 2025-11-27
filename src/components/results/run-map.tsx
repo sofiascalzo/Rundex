@@ -6,12 +6,15 @@ import type { LatLngExpression } from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Map } from 'lucide-react';
 import type { RawRunDataEntry } from '@/lib/types';
+import { useId } from 'react';
 
 interface RunMapProps {
   runData: RawRunDataEntry[];
 }
 
 export default function RunMap({ runData }: RunMapProps) {
+  const runId = useId();
+
   const positions = runData
     .map(d => d.position)
     .filter(p => p !== undefined && p.lat !== undefined && p.lng !== undefined) as { lat: number; lng: number }[];
@@ -46,7 +49,13 @@ export default function RunMap({ runData }: RunMapProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <MapContainer center={center} zoom={15} scrollWheelZoom={true} style={{ height: '400px', width: '100%', borderRadius: 'var(--radius)' }}>
+        <MapContainer 
+            key={runId}
+            center={center} 
+            zoom={15} 
+            scrollWheelZoom={true} 
+            style={{ height: '400px', width: '100%', borderRadius: 'var(--radius)' }}
+        >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
