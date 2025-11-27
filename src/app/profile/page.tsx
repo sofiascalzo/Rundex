@@ -63,7 +63,10 @@ export default function ProfilePage() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        form.setValue("avatarUrl", e.target?.result as string);
+        const newAvatarUrl = e.target?.result as string;
+        form.setValue("avatarUrl", newAvatarUrl);
+        // Save profile immediately when avatar changes to make it persistent
+        saveProfile({ ...form.getValues(), avatarUrl: newAvatarUrl });
       };
       reader.readAsDataURL(file);
     }
