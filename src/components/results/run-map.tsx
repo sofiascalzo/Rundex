@@ -1,26 +1,70 @@
 // src/components/results/run-map.tsx
-"use client";
+"use client"; 
 
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
-import type { LatLngExpression } from 'leaflet';
+import React, { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Polyline, Popup } from "react-leaflet";
+import type { Map as LeafletMap, LatLngExpression } from "leaflet";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Map } from 'lucide-react';
-import type { RawRunDataEntry } from '@/lib/types';
-import { useId } from 'react';
 
-interface RunMapProps {
-  runData: RawRunDataEntry[];
-}
+type RunMapProps = {
+  center: LatLngExpression | null;
+  path?: LatLngExpression[];
+  startPoint?: LatLngExpression;
+  endPoint?: LatLngExpression;
+  runId?: string | number;
+  zoom?: number;
+  height?: string | number;
+};
 
-export default function RunMap({ runData }: RunMapProps) {
-  const runId = useId();
+export default function RunMap({
+  center,
+  path = [],
+  startPoint,
+  endPoint,
+  runId = "default",
+  zoom = 15,
+  height = "400px",
+}: RunMapProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  const positions = runData
-    .map(d => d.position)
-    .filter(p => p !== undefined && p.lat !== undefined && p.lng !== undefined) as { lat: number; lng: number }[];
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
 
-  if (positions.length < 2) {
-    return (
+  useEffect(() => {
+    return () => {
+      try {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      } catch (err) {
+        // swallow errors during cleanup
+      }
+    };
+  }, []);
+
+  if (!mounted) {
+     return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Map className="text-primary" />
+            Run Path
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div style={{ height, width: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--muted))', borderRadius: 'var(--radius)' }}>
+            <p className="text-muted-foreground">Loading map...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!center || path.length < 2) {
+     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -34,41 +78,54 @@ export default function RunMap({ runData }: RunMapProps) {
         </Card>
     );
   }
-
-  const path: LatLngExpression[] = positions.map(p => [p.lat, p.lng]);
-  const center: LatLngExpression = path[Math.floor(path.length / 2)];
-  const startPoint = path[0];
-  const endPoint = path[path.length - 1];
+  
+  const mapKey = `runmap-${String(runId)}`;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Map className="text-primary"/>
-            Run Path
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <MapContainer 
-            key={runId}
-            center={center} 
-            zoom={15} 
-            scrollWheelZoom={true} 
-            style={{ height: '400px', width: '100%', borderRadius: 'var(--radius)' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <Polyline pathOptions={{ color: 'hsl(var(--primary))', weight: 5 }} positions={path} />
-          <Marker position={startPoint}>
-            <Popup>Start of your run</Popup>
-          </Marker>
-          <Marker position={endPoint}>
-            <Popup>End of your run</Popup>
-          </Marker>
-        </MapContainer>
-      </CardContent>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <Map className="text-primary"/>
+                Run Path
+            </CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div ref={wrapperRef} style={{ borderRadius: "var(--radius)", overflow: "hidden" }}>
+                <MapContainer
+                    key={mapKey}
+                    center={center}
+                    zoom={zoom}
+                    scrollWheelZoom={true}
+                    style={{ height, width: "100%" }}
+                    whenCreated={(mapInstance) => {
+                        try {
+                            if (mapRef.current && mapRef.current !== mapInstance) {
+                            mapRef.current.remove();
+                            }
+                        } catch (err) {
+                            // ignore
+                        }
+                        mapRef.current = mapInstance;
+                    }}
+                >
+                    <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Polyline pathOptions={{ color: 'hsl(var(--primary))', weight: 5 }} positions={path} />
+                    {startPoint && (
+                        <Marker position={startPoint}>
+                            <Popup>Start of your run</Popup>
+                        </Marker>
+                    )}
+                    {endPoint && (
+                        <Marker position={endPoint}>
+                            <Popup>End of your run</Popup>
+                        </Marker>
+                    )}
+                </MapContainer>
+            </div>
+        </CardContent>
     </Card>
   );
 }

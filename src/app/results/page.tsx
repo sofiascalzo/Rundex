@@ -2,13 +2,14 @@
 // src/app/results/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import dynamic from 'next/dynamic';
+import type { LatLngExpression } from 'leaflet';
 import AppLayout from "@/components/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { analyzeRunData } from "@/lib/gait-analysis";
-import type { GaitAnalysisResult, StepMetric, RawRunDataEntry } from "@/lib/types";
+import type { GaitAnalysisResult, RawRunDataEntry } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,9 +24,9 @@ const RunMap = dynamic(() => import('@/components/results/run-map'), {
 
 export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<GaitAnalysisResult | null>(null);
-  const [runDataForMap, setRunDataForMap] = useState<RawRunDataEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { profile } = useUserProfile();
+  const runId = useId();
 
   useEffect(() => {
     setIsLoading(true);
@@ -48,16 +49,29 @@ export default function ResultsPage() {
       if(dataToAnalyze.length > 0) {
         const analysisResults = analyzeRunData(dataToAnalyze, profile);
         setAnalysis(analysisResults);
-        if (analysisResults?.dataWithPositions) {
-            setRunDataForMap(analysisResults.dataWithPositions);
-        } else {
-            setRunDataForMap(dataToAnalyze); // Fallback
-        }
       }
       setIsLoading(false);
     }, 500);
 
   }, [profile]);
+
+  // Prepare map data
+  const positions = analysis?.dataWithPositions
+    ?.map(d => d.position)
+    .filter(p => p !== undefined && p.lat !== undefined && p.lng !== undefined) as { lat: number; lng: number }[] | undefined;
+
+  let path: LatLngExpression[] | undefined;
+  let center: LatLngExpression | null = null;
+  let startPoint: LatLngExpression | undefined;
+  let endPoint: LatLngExpression | undefined;
+
+  if (positions && positions.length >= 2) {
+    path = positions.map(p => [p.lat, p.lng]);
+    center = path[Math.floor(path.length / 2)];
+    startPoint = path[0];
+    endPoint = path[path.length - 1];
+  }
+
 
   if (isLoading) {
     return (
@@ -95,7 +109,13 @@ export default function ResultsPage() {
             <StatCard title="Average Speed" value={`${analysis.summary.avgSpeed.toFixed(2)} m/s`} icon={<TrendingUp className="h-5 w-5 text-muted-foreground" />} description="Across the session" />
         </div>
 
-        <RunMap runData={runDataForMap} />
+        <RunMap 
+            runId={runId}
+            center={center}
+            path={path}
+            startPoint={startPoint}
+            endPoint={endPoint}
+        />
 
          <Card>
             <CardHeader>
