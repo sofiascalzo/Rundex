@@ -13,7 +13,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Gauge, Link as LinkIcon, LogOut, User, Settings, Wand2, BarChart3 } from "lucide-react";
+import { Gauge, Link as LinkIcon, LogOut, User, Settings, BarChart3 } from "lucide-react";
 import Logo from "@/components/logo";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -62,16 +62,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <BarChart3 />
                 <span>Results</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => router.push("/coach")}
-                isActive={pathname === "/coach"}
-                tooltip="AI Coach"
-              >
-                <Wand2 />
-                <span>Coach</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
