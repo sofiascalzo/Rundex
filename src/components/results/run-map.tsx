@@ -1,4 +1,3 @@
-
 // src/components/results/run-map.tsx
 "use client"; 
 
@@ -49,7 +48,7 @@ export default function RunMap({
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Polyline pathOptions={{ color: 'hsl(var(--primary))', weight: 5 }} positions={path} />
+                    {path.length > 0 && <Polyline pathOptions={{ color: 'hsl(var(--primary))', weight: 5 }} positions={path} />}
                     {startPoint && (
                         <Marker position={startPoint}>
                             <Popup>Start of your run</Popup>

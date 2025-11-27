@@ -11,11 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { analyzeRunData } from "@/lib/gait-analysis";
 import type { GaitAnalysisResult, RawRunDataEntry } from "@/lib/types";
 import { useUserProfile } from "@/hooks/use-user-profile";
-import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed } from "lucide-react";
+import { Loader2, Info, BarChart3, Footprints, TrendingUp, LocateFixed, Map as MapIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import StatCard from "@/components/dashboard/stat-card";
 import Link from "next/link";
-import { Map } from "lucide-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const RunMap = dynamic(() => import('@/components/results/run-map'), {
@@ -24,7 +23,7 @@ const RunMap = dynamic(() => import('@/components/results/run-map'), {
       <Card>
           <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                  <Map className="text-primary"/>
+                  <MapIcon className="text-primary"/>
                   Run Path
               </CardTitle>
           </CardHeader>
@@ -66,7 +65,7 @@ export default function ResultsPage() {
       setIsLoading(false);
     }, 500);
 
-  }, [profile]);
+  }, [profile, runId]); // Depend on runId to allow re-analysis if needed
 
   // Prepare map data
   const positions = analysis?.dataWithPositions
@@ -136,7 +135,7 @@ export default function ResultsPage() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Map className="text-primary"/>
+                        <MapIcon className="text-primary"/>
                         Run Path
                     </CardTitle>
                 </CardHeader>
