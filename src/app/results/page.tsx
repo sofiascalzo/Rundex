@@ -185,6 +185,7 @@ export default function ResultsPage() {
                             {analysis.steps.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center text-muted-foreground">No steps detected.</TableCell>
+
                                 </TableRow>
                             )}
                         </TableBody>
