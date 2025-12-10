@@ -5,6 +5,7 @@
 <p align="center">
   <img src="./imgs/rundex1.png" width="22%" alt="Landing">
   <img src="./imgs/rundex2.png" width="22%" alt="Pairing">
+  <img src="./imgs/rundex3.png" width="22%" alt="Dashboard">
   <img src="./imgs/rundex4.png" width="22%" alt="Stats">
   <img src="./imgs/rundex5.png" width="22%" alt="AI Coach">
 
