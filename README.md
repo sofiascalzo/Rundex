@@ -1,5 +1,3 @@
-# Rundex
-
 # Rundex 🏃‍♂️
 
 > **Run Fearless.** The advanced biomechanical running tracker powered by Dual-Bluetooth technology and Generative AI.
