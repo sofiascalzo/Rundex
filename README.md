@@ -70,7 +70,7 @@ The project is built with a focus on type safety, performance, and scalability.
 
 ```bash
 # Clone the repository
-git clone [https://github.com/your-username/rundex.git](https://github.com/sofiascalzo/Rundex/)
+git clone https://github.com/sofiascalzo/Rundex/
 
 # Navigate to the project directory
 cd Rundex
