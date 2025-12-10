@@ -2,6 +2,12 @@
 
 > **Run Fearless.** The advanced biomechanical running tracker powered by Dual-Bluetooth technology and Generative AI.
 
+<p align="center">
+  <img src="./imgs/rundex1.jpeg" width="22%" alt="Landing">
+  <img src="./imgs/rundex2.jpeg" width="22%" alt="Pairing">
+  <img src="./imgs/rundex4.jpeg" width="22%" alt="Stats">
+  <img src="./imgs/rundex5.jpeg" width="22%" alt="AI Coach">
+
 ## 📖 Project Overview
 
 **Rundex** is a mobile application designed to democratize professional-grade athletic analysis. Unlike standard fitness trackers that only measure distance or heart rate, Rundex focuses on **biomechanics**.
